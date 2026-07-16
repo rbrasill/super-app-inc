@@ -3,11 +3,12 @@
 -- =============================================================================
 --  Banco canônico: dpto_processos  |  Schema: meu_inc_app
 --
---  Rode DEPOIS de db/schema.sql. Idempotente para as tabelas de referência e
---  para tasks (ON CONFLICT DO NOTHING). A tabela people usa chave gerada e só
---  é populada se estiver vazia (guarda WHERE NOT EXISTS).
+--  Rode DEPOIS de db/schema.sql. Idempotente para as tabelas de referência,
+--  blocos, projeto e tasks (ON CONFLICT DO NOTHING). A tabela people usa
+--  chave gerada e só é populada se estiver vazia (guarda WHERE NOT EXISTS).
 --
---  Espelha exatamente os dados estáticos de lib/data.ts.
+--  Espelha exatamente os dados estáticos de lib/data.ts (estratégia de
+--  blocos: 35 + 30 + 15 + 10 = 90 dias).
 -- =============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -37,11 +38,27 @@ INSERT INTO meu_inc_app.priorities (id, label, bg, text_color, sort_order) VALUE
   ('baixa', 'Baixa', '#EBEEF2', '#5B6472', 3)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO meu_inc_app.phases (id, name, sort_order) VALUES
-  ('v1.0', 'v1.0 · Base sólida',          1),
-  ('v2.0', 'v2.0 · Reter & renegociar',   2),
-  ('v3.0', 'v3.0 · Receita recorrente',   3),
-  ('v4.0', 'v4.0 · Plataforma financeira',4)
+-- ----------------------------------------------------------------------------
+--  Blocos ("bifes") — semente inicial da estratégia (35+30+15+10 = 90)
+-- ----------------------------------------------------------------------------
+INSERT INTO meu_inc_app.blocks (id, name, theme, days, color, sort_order) VALUES
+  ('b1', 'Primeiro Acesso',
+   'Login, onboarding e consentimento. A base: todo cliente passa por aqui antes de qualquer coisa.',
+   35, '#6366F1', 1),
+  ('b2', 'Cliente',
+   'Tudo que impacta o cliente: boleto, documentos, obra, chamados e notificações.',
+   30, '#0EA5E9', 2),
+  ('b3', 'Financeiro',
+   'Renegociação, cobrança acolhedora, conciliação, carteira e produtos de receita.',
+   15, '#10B981', 3),
+  ('b4', 'Assistência Técnica / SAC',
+   'Atendimento ao cliente: chamados, assinatura de aditivos e pós-venda.',
+   10, '#F97316', 4)
+ON CONFLICT (id) DO NOTHING;
+
+-- Período do projeto (linha única — lib/data.ts::PROJECT)
+INSERT INTO meu_inc_app.project (id, start_date, total_days) VALUES
+  (true, '2026-07-16', 90)
 ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------------------------
@@ -63,31 +80,31 @@ SELECT * FROM (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM meu_inc_app.people);
 
 -- ----------------------------------------------------------------------------
---  Tarefas (24) — datas ausentes ficam NULL
+--  Tarefas (24) — bloco conforme lib/data.ts; datas ausentes ficam NULL
 -- ----------------------------------------------------------------------------
-INSERT INTO meu_inc_app.tasks (id, description, area_id, phase_id, who, priority_id, status_id, start_date, end_date, dependency) VALUES
-  ('t1', 'Desenvolver 2ª via de boleto e histórico de pagamentos',        'dev',        'v1.0', 'Rafael Soares', 'alta',  'execucao',  '2026-07-01', '2026-08-15', ''),
-  ('t2', 'Criar acompanhamento de obra com fotos por etapa',              'dev',        'v1.0', 'Victor',        'media', 'validacao', '2026-07-05', '2026-08-10', ''),
-  ('t3', 'Publicar central de documentos (contrato, comprovantes)',       'dev',        'v1.0', 'Rafael Soares', 'media', 'pronto',    '2026-06-20', '2026-07-30', ''),
-  ('t4', 'Implantar login CPF + WhatsApp com consentimento LGPD',         'dev',        'v1.0', 'Victor',        'alta',  'entregue',  '2026-06-01', '2026-06-28', ''),
-  ('t5', 'Emitir parecer sobre cobrança acolhedora (CDC art. 42)',        'juridico',   'v2.0', 'Jurídico',      'alta',  'planejado', '2026-08-01', '2026-08-20', ''),
-  ('t6', 'Homologar régua de renegociação e mínimo existencial',          'cobranca',   'v2.0', '',              'media', 'backlog',   NULL,         NULL,         'depende de parecer jurídico'),
-  ('t7', 'Estruturar FIDC próprio p/ recapturar spread do pró-soluto',    'financeiro', 'v3.0', '',              'alta',  'discovery', NULL,         NULL,         'validação jurídica + cota subordinada'),
-  ('t8', 'Fechar parceiro emissor do cartão Meu INC (powered by)',        'parcerias',  'v3.0', '',              'alta',  'execucao',  '2026-09-01', '2026-11-30', 'depende de definição de BaaS'),
-  ('t9', 'Pesquisar consórcio white label via administradora autorizada', 'parcerias',  'v4.0', '',              'baixa', 'discovery', NULL,         NULL,         ''),
-  ('t10','Simular renegociação digital com proposta na hora',             'dev',        'v2.0', 'Victor',        'media', 'planejado', '2026-08-15', '2026-09-30', 'depende de homologação de régua'),
-  ('t11','Implementar push de lembrete de vencimento de parcela',         'dev',        'v1.0', 'Rafael Soares', 'alta',  'execucao',  '2026-07-10', '2026-08-05', ''),
-  ('t12','Publicar tela inicial com resumo do contrato do cliente',       'dev',        'v1.0', 'Victor',        'media', 'entregue',  '2026-05-20', '2026-06-15', ''),
-  ('t13','Criar chat de atendimento in-app com histórico',                'dev',        'v2.0', '',              'media', 'backlog',   NULL,         NULL,         ''),
-  ('t14','Integrar assinatura eletrônica de aditivos contratuais',        'dev',        'v2.0', 'Rafael Soares', 'alta',  'planejado', '2026-09-01', '2026-10-10', ''),
-  ('t15','Revisar termos de uso e política de privacidade (LGPD)',        'juridico',   'v1.0', 'Jurídico',      'alta',  'entregue',  '2026-05-05', '2026-05-30', ''),
-  ('t16','Analisar viabilidade regulatória do FIDC próprio',              'juridico',   'v3.0', 'Jurídico',      'media', 'discovery', NULL,         NULL,         'aguarda estruturação financeira'),
-  ('t17','Implantar régua de comunicação amigável (D+5, D+15, D+30)',     'cobranca',   'v2.0', '',              'media', 'execucao',  '2026-08-01', '2026-09-15', ''),
-  ('t18','Testar acordo parcelado self-service no app',                   'cobranca',   'v2.0', 'Victor',        'media', 'validacao', '2026-08-20', '2026-09-20', ''),
-  ('t19','Automatizar conciliação de recebíveis com o banco',            'financeiro', 'v3.0', '',              'alta',  'planejado', '2026-10-01', '2026-11-30', 'depende de API do banco'),
-  ('t20','Estudar antecipação de recebíveis para o cliente',             'financeiro', 'v4.0', '',              'baixa', 'discovery', NULL,         NULL,         ''),
-  ('t21','Mapear parceiros de seguro residencial (bundle)',               'parcerias',  'v3.0', '',              'baixa', 'backlog',   NULL,         NULL,         ''),
-  ('t22','Avaliar marketplace de serviços para o morador',                'parcerias',  'v4.0', '',              'baixa', 'discovery', NULL,         NULL,         ''),
-  ('t23','Criar carteira digital Meu INC (saldo e extrato)',              'dev',        'v3.0', 'Victor',        'alta',  'planejado', '2026-10-15', '2026-12-20', 'depende de parceiro emissor'),
-  ('t24','Disponibilizar segunda via de contrato em PDF',                 'dev',        'v1.0', 'Rafael Soares', 'media', 'pronto',    '2026-06-25', '2026-07-25', '')
+INSERT INTO meu_inc_app.tasks (id, description, area_id, block_id, who, priority_id, status_id, start_date, end_date, dependency) VALUES
+  ('t1', 'Desenvolver 2ª via de boleto e histórico de pagamentos',        'dev',        'b2', 'Rafael Soares', 'alta',  'execucao',  '2026-07-01', '2026-08-15', ''),
+  ('t2', 'Criar acompanhamento de obra com fotos por etapa',              'dev',        'b2', 'Victor',        'media', 'validacao', '2026-07-05', '2026-08-10', ''),
+  ('t3', 'Publicar central de documentos (contrato, comprovantes)',       'dev',        'b2', 'Rafael Soares', 'media', 'pronto',    '2026-06-20', '2026-07-30', ''),
+  ('t4', 'Implantar login CPF + WhatsApp com consentimento LGPD',         'dev',        'b1', 'Victor',        'alta',  'entregue',  '2026-06-01', '2026-06-28', ''),
+  ('t5', 'Emitir parecer sobre cobrança acolhedora (CDC art. 42)',        'juridico',   'b3', 'Jurídico',      'alta',  'planejado', '2026-08-01', '2026-08-20', ''),
+  ('t6', 'Homologar régua de renegociação e mínimo existencial',          'cobranca',   'b3', '',              'media', 'backlog',   NULL,         NULL,         'depende de parecer jurídico'),
+  ('t7', 'Estruturar FIDC próprio p/ recapturar spread do pró-soluto',    'financeiro', 'b3', '',              'alta',  'discovery', NULL,         NULL,         'validação jurídica + cota subordinada'),
+  ('t8', 'Fechar parceiro emissor do cartão Meu INC (powered by)',        'parcerias',  'b3', '',              'alta',  'execucao',  '2026-09-01', '2026-11-30', 'depende de definição de BaaS'),
+  ('t9', 'Pesquisar consórcio white label via administradora autorizada', 'parcerias',  'b3', '',              'baixa', 'discovery', NULL,         NULL,         ''),
+  ('t10','Simular renegociação digital com proposta na hora',             'dev',        'b3', 'Victor',        'media', 'planejado', '2026-08-15', '2026-09-30', 'depende de homologação de régua'),
+  ('t11','Implementar push de lembrete de vencimento de parcela',         'dev',        'b2', 'Rafael Soares', 'alta',  'execucao',  '2026-07-10', '2026-08-05', ''),
+  ('t12','Publicar tela inicial com resumo do contrato do cliente',       'dev',        'b1', 'Victor',        'media', 'entregue',  '2026-05-20', '2026-06-15', ''),
+  ('t13','Criar chat de atendimento in-app com histórico',                'dev',        'b4', '',              'media', 'backlog',   NULL,         NULL,         ''),
+  ('t14','Integrar assinatura eletrônica de aditivos contratuais',        'dev',        'b4', 'Rafael Soares', 'alta',  'planejado', '2026-09-01', '2026-10-10', ''),
+  ('t15','Revisar termos de uso e política de privacidade (LGPD)',        'juridico',   'b1', 'Jurídico',      'alta',  'entregue',  '2026-05-05', '2026-05-30', ''),
+  ('t16','Analisar viabilidade regulatória do FIDC próprio',              'juridico',   'b3', 'Jurídico',      'media', 'discovery', NULL,         NULL,         'aguarda estruturação financeira'),
+  ('t17','Implantar régua de comunicação amigável (D+5, D+15, D+30)',     'cobranca',   'b3', '',              'media', 'execucao',  '2026-08-01', '2026-09-15', ''),
+  ('t18','Testar acordo parcelado self-service no app',                   'cobranca',   'b3', 'Victor',        'media', 'validacao', '2026-08-20', '2026-09-20', ''),
+  ('t19','Automatizar conciliação de recebíveis com o banco',            'financeiro', 'b3', '',              'alta',  'planejado', '2026-10-01', '2026-11-30', 'depende de API do banco'),
+  ('t20','Estudar antecipação de recebíveis para o cliente',             'financeiro', 'b3', '',              'baixa', 'discovery', NULL,         NULL,         ''),
+  ('t21','Mapear parceiros de seguro residencial (bundle)',               'parcerias',  'b2', '',              'baixa', 'backlog',   NULL,         NULL,         ''),
+  ('t22','Avaliar marketplace de serviços para o morador',                'parcerias',  'b2', '',              'baixa', 'discovery', NULL,         NULL,         ''),
+  ('t23','Criar carteira digital Meu INC (saldo e extrato)',              'dev',        'b3', 'Victor',        'alta',  'planejado', '2026-10-15', '2026-12-20', 'depende de parceiro emissor'),
+  ('t24','Disponibilizar segunda via de contrato em PDF',                 'dev',        'b2', 'Rafael Soares', 'media', 'pronto',    '2026-06-25', '2026-07-25', '')
 ON CONFLICT (id) DO NOTHING;

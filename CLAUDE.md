@@ -4,6 +4,11 @@ Painel de projeto (SPA) da **INC Empreendimentos**, acompanhando a construção 
 app "Meu INC App". Stack: **Next.js 15 (App Router) · React 19 · TypeScript ·
 Tailwind CSS**. Estado hoje é estático/em memória (`lib/data.ts` + `lib/store.tsx`).
 
+O projeto segue a **estratégia de blocos ("bifes")**: fatiado em blocos
+temáticos com prazo próprio em dias (soma fecha o período de 90 dias). Blocos
+substituem as antigas fases (v1.0–v4.0); o controle de fase é por entrega, via
+pipeline de status de cada tarefa.
+
 ## ⚠️ Banco de dados — REGRA CRÍTICA
 
 Ao acessar PostgreSQL (via conector **Pipedream · PostgreSQL** ou qualquer
@@ -17,7 +22,7 @@ outra forma), **use SEMPRE o banco `dpto_processos`**, schema **`meu_inc_app`**.
 - Antes de qualquer operação, confirme:
   `SELECT current_database();` → deve ser **`dpto_processos`**.
 - Toda a estrutura do app vive no schema **`meu_inc_app`** (qualifique as
-  tabelas: `meu_inc_app.tasks`, `meu_inc_app.v_tasks`, etc.).
+  tabelas: `meu_inc_app.tasks`, `meu_inc_app.blocks`, `meu_inc_app.v_tasks`, etc.).
 - O conector Pipedream **não aceita scripts multi-statement** — execute um
   comando SQL por vez.
 
@@ -31,10 +36,13 @@ ambiente, fora do repositório.
 
 ```
 app/        layout.tsx (fontes+metadata) · page.tsx (shell, estado view/sub) · globals.css
-lib/        data.ts (dados estáticos) · types.ts · derive.ts (derivações puras)
-            store.tsx (Context: estado+CRUD+filtros+modal) · theme.ts · exportCsv.ts
-components/  Sidebar · Topbar · Dashboard · SponsorView · PeopleGrid · TaskModal
-             KpiCard · icons · board/{BoardView,KanbanBoard,GroupedBoard,TaskCard}
+lib/        data.ts (dados estáticos: BLOCKS, PROJECT, TASKS…) · types.ts
+            derive.ts (derivações puras: blocos, board, kpis…)
+            store.tsx (Context: estado+CRUD tarefas/blocos+filtros+modais)
+            theme.ts · exportCsv.ts
+components/  Sidebar · Topbar · Dashboard · SponsorView · PeopleGrid
+             TaskModal · BlockModal · BlocosView · KpiCard · icons
+             board/{BoardView,KanbanBoard,GroupedBoard,TaskCard}
 db/         schema.sql · seed.sql   (espelham lib/data.ts no PostgreSQL)
 docs/       DATABASE.md
 ```

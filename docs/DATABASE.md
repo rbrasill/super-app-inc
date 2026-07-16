@@ -39,30 +39,42 @@ errada.
 
 ## Estrutura
 
-Todo o conteúdo do projeto fica no schema **`meu_inc_app`**.
+Todo o conteúdo do projeto fica no schema **`meu_inc_app`**, alinhado à
+**estratégia de blocos ("bifes")**: o projeto é fatiado em blocos temáticos
+com prazo próprio em dias; a soma dos blocos fecha o período do projeto
+(90 dias). Blocos substituem as antigas fases (v1.0–v4.0); o controle de fase
+é por entrega, via pipeline de status de cada tarefa.
 
 | Objeto                          | Tipo    | Papel                                                        |
 |---------------------------------|---------|--------------------------------------------------------------|
 | `areas`                         | tabela  | Áreas (dev, jurídico, cobrança, financeiro, parcerias)       |
 | `statuses`                      | tabela  | 7 status do fluxo (discovery → entregue)                     |
 | `priorities`                    | tabela  | Prioridades (alta, média, baixa)                             |
-| `phases`                        | tabela  | Fases do roadmap (v1.0 → v4.0)                               |
+| `blocks`                        | tabela  | Blocos/"bifes" (nome, tema, dias, cor, ordem na timeline)    |
+| `project`                       | tabela  | Período do projeto — linha única (início + total de dias)    |
 | `people`                        | tabela  | Time & papéis                                                |
-| `tasks`                         | tabela  | Tarefas do quadro (FKs para as tabelas de referência)        |
+| `tasks`                         | tabela  | Tarefas do quadro (FKs para áreas/blocos/status/prioridades) |
 | `v_tasks`                       | view    | Tarefa "decorada" (nomes já resolvidos por JOIN)             |
 | `trg_tasks_updated_at`          | trigger | Mantém `tasks.updated_at` automaticamente no UPDATE          |
 
 O mapeamento é 1:1 com os tipos de `lib/types.ts` e os dados de `lib/data.ts`:
 
-- `Task.area`   → `tasks.area_id`   → `areas.id`
-- `Task.phase`  → `tasks.phase_id`  → `phases.id`  (id curto: `v1.0`…`v4.0`)
-- `Task.prio`   → `tasks.priority_id` → `priorities.id`
-- `Task.status` → `tasks.status_id` → `statuses.id`
+- `Bloco`        → `blocks` (id, name, theme, days, color)
+- `PROJECT`      → `project` (start_date, total_days)
+- `Task.area`    → `tasks.area_id`   → `areas.id`
+- `Task.blockId` → `tasks.block_id`  → `blocks.id` (`""` no app ↔ `NULL` no banco)
+- `Task.prio`    → `tasks.priority_id` → `priorities.id`
+- `Task.status`  → `tasks.status_id` → `statuses.id`
 - `Task.who` / `Task.dep` → `tasks.who` / `tasks.dependency` (texto livre)
 
 > `tasks.who` é texto livre e **não** é FK para `people` — nem todo responsável
 > é uma pessoa cadastrada (ex.: `"Jurídico"`), espelhando o comportamento atual
 > do app.
+
+> **Histórico:** a primeira versão do schema tinha `phases` (v1.0–v4.0) e
+> `tasks.phase_id`. Em 2026-07-16, após o merge da estratégia de blocos
+> (PR #1), o banco foi migrado: criada `blocks` + `tasks.block_id`, tarefas
+> re-mapeadas, view recriada, e `phases`/`phase_id` removidos.
 
 ## Como (re)criar a estrutura
 
@@ -70,7 +82,7 @@ O mapeamento é 1:1 com os tipos de `lib/types.ts` e os dados de `lib/data.ts`:
 # 1) estrutura (schema, tabelas, índices, trigger, view) — idempotente
 psql "$DATABASE_URL" -f db/schema.sql
 
-# 2) carga inicial (referência + dados de demonstração) — idempotente
+# 2) carga inicial (referência + blocos + projeto + demo) — idempotente
 psql "$DATABASE_URL" -f db/seed.sql
 ```
 
@@ -84,6 +96,7 @@ estrutura e devem ser versionados junto com qualquer alteração de modelo.
 
 Hoje o app lê dados **estáticos** de `lib/data.ts` com estado em memória
 (`lib/store.tsx`). Para persistir de verdade, troque as constantes/handlers por
-chamadas que leiam de `meu_inc_app.v_tasks` e escrevam em `meu_inc_app.tasks`,
+chamadas que leiam de `meu_inc_app.v_tasks` / `meu_inc_app.blocks` /
+`meu_inc_app.project` e escrevam em `meu_inc_app.tasks` / `meu_inc_app.blocks`,
 mantendo os tipos de `lib/types.ts`. Nenhuma credencial deve ser commitada —
 use variáveis de ambiente (`DATABASE_URL`) fora do repositório.

@@ -12,6 +12,11 @@
 --  tentativa de acessar outro banco nesta conexão retorna "permission denied".
 --  Veja docs/DATABASE.md para o detalhamento.
 --
+--  Modelo alinhado à ESTRATÉGIA DE BLOCOS ("bifes"): o projeto é fatiado em
+--  blocos temáticos com prazo próprio em dias (a soma fecha o período do
+--  projeto). Blocos substituem as antigas fases (v1.0–v4.0); o controle de
+--  fase é por entrega, via pipeline de status de cada tarefa.
+--
 --  Este arquivo é a fonte da verdade da estrutura: idempotente, seguro de
 --  reexecutar. Para popular os dados de referência + demo, rode db/seed.sql.
 -- =============================================================================
@@ -50,11 +55,26 @@ CREATE TABLE IF NOT EXISTS meu_inc_app.priorities (
   sort_order smallint NOT NULL DEFAULT 0
 );
 
--- Fases do roadmap: v1.0 .. v4.0
-CREATE TABLE IF NOT EXISTS meu_inc_app.phases (
-  id         text PRIMARY KEY,   -- ex.: 'v1.0'
-  name       text NOT NULL,      -- ex.: 'v1.0 · Base sólida'
+-- ----------------------------------------------------------------------------
+--  Blocos ("bifes") — fatias temáticas do projeto (lib/types.ts::Bloco).
+--  Editáveis pelo usuário (CRUD ilimitado no app); sort_order = posição na
+--  timeline de encaixe.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS meu_inc_app.blocks (
+  id         text PRIMARY KEY,               -- ex.: 'b1'
+  name       text NOT NULL,                  -- ex.: 'Primeiro Acesso'
+  theme      text NOT NULL DEFAULT '',       -- tema / o que entra no bloco
+  days       integer NOT NULL DEFAULT 0,     -- dias alocados
+  color      text NOT NULL,
   sort_order smallint NOT NULL DEFAULT 0
+);
+
+-- Configuração do período do projeto (linha única — lib/data.ts::PROJECT).
+-- A soma de blocks.days deve fechar project.total_days.
+CREATE TABLE IF NOT EXISTS meu_inc_app.project (
+  id         boolean PRIMARY KEY DEFAULT true CHECK (id),  -- garante 1 linha
+  start_date date NOT NULL,
+  total_days integer NOT NULL
 );
 
 -- ----------------------------------------------------------------------------
@@ -75,7 +95,7 @@ CREATE TABLE IF NOT EXISTS meu_inc_app.tasks (
   id          text PRIMARY KEY,                -- mantém compat. com 't1'..'t24'
   description text NOT NULL,
   area_id     text NOT NULL REFERENCES meu_inc_app.areas(id),
-  phase_id    text REFERENCES meu_inc_app.phases(id),
+  block_id    text REFERENCES meu_inc_app.blocks(id),  -- NULL = sem bloco
   who         text NOT NULL DEFAULT '',        -- nome livre (nem todo who é uma pessoa cadastrada)
   priority_id text NOT NULL DEFAULT 'media' REFERENCES meu_inc_app.priorities(id),
   status_id   text NOT NULL REFERENCES meu_inc_app.statuses(id),
@@ -88,7 +108,7 @@ CREATE TABLE IF NOT EXISTS meu_inc_app.tasks (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_area   ON meu_inc_app.tasks(area_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON meu_inc_app.tasks(status_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_phase  ON meu_inc_app.tasks(phase_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_block  ON meu_inc_app.tasks(block_id);
 
 -- ----------------------------------------------------------------------------
 --  Manutenção automática de updated_at
@@ -107,14 +127,14 @@ CREATE OR REPLACE TRIGGER trg_tasks_updated_at
 
 -- ----------------------------------------------------------------------------
 --  View de conveniência: tarefa "decorada" (espelha lib/derive.ts::decorate)
---  Já traz os nomes de área/fase/status/prioridade resolvidos por JOIN.
+--  Já traz os nomes de área/bloco/status/prioridade resolvidos por JOIN.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE VIEW meu_inc_app.v_tasks AS
 SELECT
   t.id,
   t.description,
   t.area_id,     a.name  AS area_name,     a.color AS area_color,
-  t.phase_id,    p.name  AS phase_name,
+  t.block_id,    b.name  AS block_name,    b.color AS block_color,
   t.who,
   t.priority_id, pr.label AS priority_label,
   t.status_id,   s.name  AS status_name,   s.color AS status_color, s.soft AS status_soft,
@@ -125,6 +145,18 @@ SELECT
   t.updated_at
 FROM meu_inc_app.tasks t
 JOIN      meu_inc_app.areas      a  ON a.id  = t.area_id
-LEFT JOIN meu_inc_app.phases     p  ON p.id  = t.phase_id
+LEFT JOIN meu_inc_app.blocks     b  ON b.id  = t.block_id
 JOIN      meu_inc_app.priorities pr ON pr.id = t.priority_id
 JOIN      meu_inc_app.statuses   s  ON s.id  = t.status_id;
+
+-- =============================================================================
+--  MIGRAÇÃO fases → blocos (histórico)
+--  A primeira versão deste schema tinha `phases` (v1.0–v4.0) e
+--  `tasks.phase_id`. Com a estratégia de blocos (PR #1), o banco foi migrado:
+--    1. CREATE TABLE blocks + seed b1..b4
+--    2. ALTER TABLE tasks ADD COLUMN block_id REFERENCES blocks(id)
+--    3. UPDATE tasks SET block_id = <mapeamento de lib/data.ts>
+--    4. DROP VIEW v_tasks; CREATE VIEW v_tasks (com blocos)
+--    5. ALTER TABLE tasks DROP COLUMN phase_id; DROP TABLE phases
+--  Executada em 2026-07-16 no dpto_processos via conector Pipedream.
+-- =============================================================================
