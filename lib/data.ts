@@ -1,4 +1,4 @@
-import type { Area, Bloco, Priority, PriorityId, Status, Task } from "./types";
+import type { Area, Bloco, Fase, Priority, PriorityId, Status, Task } from "./types";
 
 export const STATUSES: Status[] = [
   { id: "discovery", name: "Discovery", sub: "Pesquisa / ideia", color: "#64748B", soft: "#EEF1F5", light: true },
@@ -31,6 +31,17 @@ export const PROJECT = {
 } as const;
 
 /**
+ * Fases do roadmap — camada acima dos blocos. Cada bloco se encaixa em uma
+ * fase; o andamento da fase decorre das entregas dos blocos/tarefas dela.
+ */
+export const PHASES: Fase[] = [
+  { id: "v1.0", name: "v1.0 · Base sólida", short: "v1.0" },
+  { id: "v2.0", name: "v2.0 · Reter & renegociar", short: "v2.0" },
+  { id: "v3.0", name: "v3.0 · Receita recorrente", short: "v3.0" },
+  { id: "v4.0", name: "v4.0 · Plataforma financeira", short: "v4.0" },
+];
+
+/**
  * Blocos ("bifes") — fatias temáticas do projeto. São editáveis em tempo de
  * execução (o usuário pode adicionar quantos quiser); estes são apenas a
  * semente inicial, espelhando o exemplo da estratégia (35 + 30 + 15 + 10 = 90).
@@ -42,6 +53,7 @@ export const BLOCKS: Bloco[] = [
     theme: "Login, onboarding e consentimento. A base: todo cliente passa por aqui antes de qualquer coisa.",
     days: 35,
     color: "#6366F1",
+    phaseId: "v1.0",
   },
   {
     id: "b2",
@@ -49,6 +61,7 @@ export const BLOCKS: Bloco[] = [
     theme: "Tudo que impacta o cliente: boleto, documentos, obra, chamados e notificações.",
     days: 30,
     color: "#0EA5E9",
+    phaseId: "v1.0",
   },
   {
     id: "b3",
@@ -56,6 +69,7 @@ export const BLOCKS: Bloco[] = [
     theme: "Renegociação, cobrança acolhedora, conciliação, carteira e produtos de receita.",
     days: 15,
     color: "#10B981",
+    phaseId: "v2.0",
   },
   {
     id: "b4",
@@ -63,6 +77,7 @@ export const BLOCKS: Bloco[] = [
     theme: "Atendimento ao cliente: chamados, assinatura de aditivos e pós-venda.",
     days: 10,
     color: "#F97316",
+    phaseId: "v2.0",
   },
 ];
 

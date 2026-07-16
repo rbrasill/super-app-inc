@@ -27,6 +27,18 @@ export interface Area {
 }
 
 /**
+ * Fase do roadmap (v1.0–v4.0). Camada acima dos blocos: cada bloco se
+ * encaixa em uma fase; as tarefas pertencem aos blocos.
+ */
+export interface Fase {
+  id: string;
+  /** Nome completo (ex.: "v1.0 · Base sólida"). */
+  name: string;
+  /** Rótulo curto (ex.: "v1.0"). */
+  short: string;
+}
+
+/**
  * Bloco ("bife") — fatia temática do projeto. Cada bloco agrupa tarefas
  * (o "pacote completo": tela + back + regra + cadastro) e recebe um prazo
  * próprio em dias; a soma dos blocos fecha o período do projeto.
@@ -41,6 +53,8 @@ export interface Bloco {
   days: number;
   /** Cor de destaque. */
   color: string;
+  /** Fase do roadmap em que o bloco se encaixa ("" = sem fase). */
+  phaseId: string;
 }
 
 export interface Priority {

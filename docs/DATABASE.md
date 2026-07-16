@@ -40,41 +40,48 @@ errada.
 ## Estrutura
 
 Todo o conteúdo do projeto fica no schema **`meu_inc_app`**, alinhado à
-**estratégia de blocos ("bifes")**: o projeto é fatiado em blocos temáticos
-com prazo próprio em dias; a soma dos blocos fecha o período do projeto
-(90 dias). Blocos substituem as antigas fases (v1.0–v4.0); o controle de fase
-é por entrega, via pipeline de status de cada tarefa.
+**estratégia de blocos ("bifes")** com a hierarquia **fase → bloco → tarefa**:
+o projeto é fatiado em blocos temáticos com prazo próprio em dias (a soma
+fecha o período de 90 dias), e cada bloco se encaixa em uma **fase do
+roadmap** (v1.0–v4.0). O controle de andamento é por entrega, via pipeline de
+status de cada tarefa.
 
 | Objeto                          | Tipo    | Papel                                                        |
 |---------------------------------|---------|--------------------------------------------------------------|
 | `areas`                         | tabela  | Áreas (dev, jurídico, cobrança, financeiro, parcerias)       |
 | `statuses`                      | tabela  | 7 status do fluxo (discovery → entregue)                     |
 | `priorities`                    | tabela  | Prioridades (alta, média, baixa)                             |
-| `blocks`                        | tabela  | Blocos/"bifes" (nome, tema, dias, cor, ordem na timeline)    |
+| `phases`                        | tabela  | Fases do roadmap (v1.0–v4.0) — camada acima dos blocos       |
+| `blocks`                        | tabela  | Blocos/"bifes" (nome, tema, dias, cor, fase, ordem)          |
 | `project`                       | tabela  | Período do projeto — linha única (início + total de dias)    |
 | `people`                        | tabela  | Time & papéis                                                |
 | `tasks`                         | tabela  | Tarefas do quadro (FKs para áreas/blocos/status/prioridades) |
-| `v_tasks`                       | view    | Tarefa "decorada" (nomes já resolvidos por JOIN)             |
+| `v_tasks`                       | view    | Tarefa "decorada" (nomes + fase do bloco resolvidos por JOIN)|
 | `trg_tasks_updated_at`          | trigger | Mantém `tasks.updated_at` automaticamente no UPDATE          |
 
 O mapeamento é 1:1 com os tipos de `lib/types.ts` e os dados de `lib/data.ts`:
 
-- `Bloco`        → `blocks` (id, name, theme, days, color)
-- `PROJECT`      → `project` (start_date, total_days)
-- `Task.area`    → `tasks.area_id`   → `areas.id`
-- `Task.blockId` → `tasks.block_id`  → `blocks.id` (`""` no app ↔ `NULL` no banco)
-- `Task.prio`    → `tasks.priority_id` → `priorities.id`
-- `Task.status`  → `tasks.status_id` → `statuses.id`
+- `Fase`          → `phases` (id, name, short)
+- `Bloco`         → `blocks` (id, name, theme, days, color, phaseId)
+- `Bloco.phaseId` → `blocks.phase_id` → `phases.id` (`""` no app ↔ `NULL` no banco)
+- `PROJECT`       → `project` (start_date, total_days)
+- `Task.area`     → `tasks.area_id`   → `areas.id`
+- `Task.blockId`  → `tasks.block_id`  → `blocks.id` (`""` no app ↔ `NULL` no banco)
+- `Task.prio`     → `tasks.priority_id` → `priorities.id`
+- `Task.status`   → `tasks.status_id` → `statuses.id`
 - `Task.who` / `Task.dep` → `tasks.who` / `tasks.dependency` (texto livre)
 
 > `tasks.who` é texto livre e **não** é FK para `people` — nem todo responsável
 > é uma pessoa cadastrada (ex.: `"Jurídico"`), espelhando o comportamento atual
 > do app.
 
-> **Histórico:** a primeira versão do schema tinha `phases` (v1.0–v4.0) e
-> `tasks.phase_id`. Em 2026-07-16, após o merge da estratégia de blocos
-> (PR #1), o banco foi migrado: criada `blocks` + `tasks.block_id`, tarefas
-> re-mapeadas, view recriada, e `phases`/`phase_id` removidos.
+> **Histórico:** a primeira versão do schema tinha `phases` (v1.0–v4.0) ligada
+> direto a `tasks.phase_id`. Em 2026-07-16, após o merge da estratégia de
+> blocos (PR #1), o banco foi migrado: criada `blocks` + `tasks.block_id`,
+> tarefas re-mapeadas, view recriada, e `phases`/`phase_id` removidos. No
+> mesmo dia as fases **voltaram como camada acima dos blocos**
+> (`blocks.phase_id` → `phases.id`), fechando a hierarquia fase → bloco →
+> tarefa.
 
 ## Como (re)criar a estrutura
 

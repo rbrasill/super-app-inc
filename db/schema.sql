@@ -12,10 +12,10 @@
 --  tentativa de acessar outro banco nesta conexão retorna "permission denied".
 --  Veja docs/DATABASE.md para o detalhamento.
 --
---  Modelo alinhado à ESTRATÉGIA DE BLOCOS ("bifes"): o projeto é fatiado em
---  blocos temáticos com prazo próprio em dias (a soma fecha o período do
---  projeto). Blocos substituem as antigas fases (v1.0–v4.0); o controle de
---  fase é por entrega, via pipeline de status de cada tarefa.
+--  Modelo alinhado à ESTRATÉGIA DE BLOCOS ("bifes") com hierarquia
+--  FASE → BLOCO → TAREFA: o projeto é fatiado em blocos temáticos com prazo
+--  próprio em dias (a soma fecha o período do projeto), e cada bloco se
+--  encaixa em uma fase do roadmap (v1.0–v4.0).
 --
 --  Este arquivo é a fonte da verdade da estrutura: idempotente, seguro de
 --  reexecutar. Para popular os dados de referência + demo, rode db/seed.sql.
@@ -56,6 +56,17 @@ CREATE TABLE IF NOT EXISTS meu_inc_app.priorities (
 );
 
 -- ----------------------------------------------------------------------------
+--  Fases do roadmap (lib/types.ts::Fase) — camada acima dos blocos.
+--  Cada bloco se encaixa em uma fase (blocks.phase_id).
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS meu_inc_app.phases (
+  id         text PRIMARY KEY,               -- ex.: 'v1.0'
+  name       text NOT NULL,                  -- ex.: 'v1.0 · Base sólida'
+  short      text NOT NULL DEFAULT '',       -- rótulo curto (ex.: 'v1.0')
+  sort_order smallint NOT NULL DEFAULT 0
+);
+
+-- ----------------------------------------------------------------------------
 --  Blocos ("bifes") — fatias temáticas do projeto (lib/types.ts::Bloco).
 --  Editáveis pelo usuário (CRUD ilimitado no app); sort_order = posição na
 --  timeline de encaixe.
@@ -66,6 +77,7 @@ CREATE TABLE IF NOT EXISTS meu_inc_app.blocks (
   theme      text NOT NULL DEFAULT '',       -- tema / o que entra no bloco
   days       integer NOT NULL DEFAULT 0,     -- dias alocados
   color      text NOT NULL,
+  phase_id   text REFERENCES meu_inc_app.phases(id),  -- NULL = sem fase
   sort_order smallint NOT NULL DEFAULT 0
 );
 
@@ -135,6 +147,7 @@ SELECT
   t.description,
   t.area_id,     a.name  AS area_name,     a.color AS area_color,
   t.block_id,    b.name  AS block_name,    b.color AS block_color,
+  b.phase_id,    ph.name AS phase_name,
   t.who,
   t.priority_id, pr.label AS priority_label,
   t.status_id,   s.name  AS status_name,   s.color AS status_color, s.soft AS status_soft,
@@ -146,17 +159,20 @@ SELECT
 FROM meu_inc_app.tasks t
 JOIN      meu_inc_app.areas      a  ON a.id  = t.area_id
 LEFT JOIN meu_inc_app.blocks     b  ON b.id  = t.block_id
+LEFT JOIN meu_inc_app.phases     ph ON ph.id = b.phase_id
 JOIN      meu_inc_app.priorities pr ON pr.id = t.priority_id
 JOIN      meu_inc_app.statuses   s  ON s.id  = t.status_id;
 
 -- =============================================================================
---  MIGRAÇÃO fases → blocos (histórico)
---  A primeira versão deste schema tinha `phases` (v1.0–v4.0) e
---  `tasks.phase_id`. Com a estratégia de blocos (PR #1), o banco foi migrado:
---    1. CREATE TABLE blocks + seed b1..b4
---    2. ALTER TABLE tasks ADD COLUMN block_id REFERENCES blocks(id)
---    3. UPDATE tasks SET block_id = <mapeamento de lib/data.ts>
---    4. DROP VIEW v_tasks; CREATE VIEW v_tasks (com blocos)
---    5. ALTER TABLE tasks DROP COLUMN phase_id; DROP TABLE phases
---  Executada em 2026-07-16 no dpto_processos via conector Pipedream.
+--  HISTÓRICO DE MIGRAÇÕES (executadas no dpto_processos via conector Pipedream)
+--
+--  2026-07-16 · fases → blocos (estratégia de blocos, PR #1):
+--    a primeira versão tinha `phases` ligada direto a `tasks.phase_id`;
+--    foi substituída por `blocks` + `tasks.block_id` (tarefas re-mapeadas),
+--    view recriada, e `phases`/`phase_id` de tasks removidos.
+--
+--  2026-07-16 · fases voltam como camada ACIMA dos blocos:
+--    CREATE TABLE phases (v1.0–v4.0) + blocks.phase_id (b1,b2→v1.0;
+--    b3,b4→v2.0) + v_tasks recriada expondo phase_id/phase_name do bloco.
+--    Hierarquia final: fase → bloco → tarefa.
 -- =============================================================================

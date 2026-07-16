@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AV_PALETTE } from "@/lib/data";
+import { AV_PALETTE, PHASES } from "@/lib/data";
 import { useStore, type BlockInput } from "@/lib/store";
 import type { Bloco } from "@/lib/types";
 
@@ -10,11 +10,12 @@ const EMPTY: BlockInput = {
   theme: "",
   days: 15,
   color: AV_PALETTE[0],
+  phaseId: "",
 };
 
 function toInput(b: Bloco): BlockInput {
-  const { name, theme, days, color } = b;
-  return { name, theme, days, color };
+  const { name, theme, days, color, phaseId } = b;
+  return { name, theme, days, color, phaseId };
 }
 
 const labelCls = "text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkFaint mb-[6px] block";
@@ -94,7 +95,18 @@ export default function BlockModal() {
             />
           </div>
 
-          <div className="grid grid-cols-[120px_1fr] gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Fase do roadmap</label>
+              <select className={fieldCls} value={form.phaseId} onChange={(e) => set("phaseId", e.target.value)}>
+                <option value="">Sem fase</option>
+                {PHASES.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className={labelCls}>Prazo (dias)</label>
               <input
@@ -105,22 +117,23 @@ export default function BlockModal() {
                 onChange={(e) => set("days", Number(e.target.value))}
               />
             </div>
-            <div>
-              <label className={labelCls}>Cor</label>
-              <div className="flex flex-wrap gap-2 pt-[6px]">
-                {AV_PALETTE.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => set("color", c)}
-                    aria-label={`Cor ${c}`}
-                    className={`w-[26px] h-[26px] rounded-lg transition-transform hover:scale-110 ${
-                      form.color === c ? "ring-2 ring-offset-2 ring-ink" : ""
-                    }`}
-                    style={{ background: c }}
-                  />
-                ))}
-              </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Cor</label>
+            <div className="flex flex-wrap gap-2 pt-[6px]">
+              {AV_PALETTE.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => set("color", c)}
+                  aria-label={`Cor ${c}`}
+                  className={`w-[26px] h-[26px] rounded-lg transition-transform hover:scale-110 ${
+                    form.color === c ? "ring-2 ring-offset-2 ring-ink" : ""
+                  }`}
+                  style={{ background: c }}
+                />
+              ))}
             </div>
           </div>
         </div>

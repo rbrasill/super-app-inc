@@ -4,10 +4,11 @@ Painel de projeto (SPA) da **INC Empreendimentos**, acompanhando a construção 
 app "Meu INC App". Stack: **Next.js 15 (App Router) · React 19 · TypeScript ·
 Tailwind CSS**. Estado hoje é estático/em memória (`lib/data.ts` + `lib/store.tsx`).
 
-O projeto segue a **estratégia de blocos ("bifes")**: fatiado em blocos
-temáticos com prazo próprio em dias (soma fecha o período de 90 dias). Blocos
-substituem as antigas fases (v1.0–v4.0); o controle de fase é por entrega, via
-pipeline de status de cada tarefa.
+O projeto segue a **estratégia de blocos ("bifes")** com hierarquia
+**fase → bloco → tarefa**: fatiado em blocos temáticos com prazo próprio em
+dias (soma fecha o período de 90 dias), e cada bloco se encaixa em uma fase do
+roadmap (v1.0–v4.0). O controle de andamento é por entrega, via pipeline de
+status de cada tarefa.
 
 ## ⚠️ Banco de dados — REGRA CRÍTICA
 

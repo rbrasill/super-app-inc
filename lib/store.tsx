@@ -24,6 +24,7 @@ export interface BlockInput {
   theme: string;
   days: number;
   color: string;
+  phaseId: string;
 }
 
 export type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;

@@ -39,21 +39,32 @@ INSERT INTO meu_inc_app.priorities (id, label, bg, text_color, sort_order) VALUE
 ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------------------------
---  Blocos ("bifes") — semente inicial da estratégia (35+30+15+10 = 90)
+--  Fases do roadmap — camada acima dos blocos
 -- ----------------------------------------------------------------------------
-INSERT INTO meu_inc_app.blocks (id, name, theme, days, color, sort_order) VALUES
+INSERT INTO meu_inc_app.phases (id, name, short, sort_order) VALUES
+  ('v1.0', 'v1.0 · Base sólida',           'v1.0', 1),
+  ('v2.0', 'v2.0 · Reter & renegociar',    'v2.0', 2),
+  ('v3.0', 'v3.0 · Receita recorrente',    'v3.0', 3),
+  ('v4.0', 'v4.0 · Plataforma financeira', 'v4.0', 4)
+ON CONFLICT (id) DO NOTHING;
+
+-- ----------------------------------------------------------------------------
+--  Blocos ("bifes") — semente inicial da estratégia (35+30+15+10 = 90),
+--  cada um encaixado em uma fase
+-- ----------------------------------------------------------------------------
+INSERT INTO meu_inc_app.blocks (id, name, theme, days, color, phase_id, sort_order) VALUES
   ('b1', 'Primeiro Acesso',
    'Login, onboarding e consentimento. A base: todo cliente passa por aqui antes de qualquer coisa.',
-   35, '#6366F1', 1),
+   35, '#6366F1', 'v1.0', 1),
   ('b2', 'Cliente',
    'Tudo que impacta o cliente: boleto, documentos, obra, chamados e notificações.',
-   30, '#0EA5E9', 2),
+   30, '#0EA5E9', 'v1.0', 2),
   ('b3', 'Financeiro',
    'Renegociação, cobrança acolhedora, conciliação, carteira e produtos de receita.',
-   15, '#10B981', 3),
+   15, '#10B981', 'v2.0', 3),
   ('b4', 'Assistência Técnica / SAC',
    'Atendimento ao cliente: chamados, assinatura de aditivos e pós-venda.',
-   10, '#F97316', 4)
+   10, '#F97316', 'v2.0', 4)
 ON CONFLICT (id) DO NOTHING;
 
 -- Período do projeto (linha única — lib/data.ts::PROJECT)

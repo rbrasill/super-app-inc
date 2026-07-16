@@ -91,6 +91,14 @@ function BlockCard({ row, tasks }: { row: BlockRow; tasks: Task[] }) {
           >
             🥩 Bife {row.bife}
           </span>
+          {row.phaseShort && (
+            <span
+              className="text-[10px] font-extrabold px-2 py-[3px] rounded-[20px] bg-chip text-inkSoft"
+              title={row.phaseName}
+            >
+              {row.phaseShort}
+            </span>
+          )}
           <span className="text-[11px] font-bold text-inkSoft">{row.daysLabel}</span>
           <span className="text-[11px] font-semibold text-inkFaint">· {row.weekRange}</span>
           {/* Ações */}

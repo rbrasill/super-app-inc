@@ -1,9 +1,10 @@
-import { AREAS, AV_PALETTE, PEOPLE_RAW, PROJECT, PRIO, STATUSES } from "./data";
+import { AREAS, AV_PALETTE, PEOPLE_RAW, PHASES, PROJECT, PRIO, STATUSES } from "./data";
 import { THEME } from "./theme";
-import type { Area, Bloco, DecoratedTask, Status, Task } from "./types";
+import type { Area, Bloco, DecoratedTask, Fase, Status, Task } from "./types";
 
 const areaMap: Record<string, Area> = Object.fromEntries(AREAS.map((a) => [a.id, a]));
 const statusMap: Record<string, Status> = Object.fromEntries(STATUSES.map((s) => [s.id, s]));
+const phaseMap: Record<string, Fase> = Object.fromEntries(PHASES.map((p) => [p.id, p]));
 
 const fmt = (d: string): string => {
   if (!d) return "";
@@ -150,6 +151,10 @@ export interface BlockRow {
   short: string;
   theme: string;
   color: string;
+  /** Fase do roadmap em que o bloco se encaixa. */
+  phaseId: string;
+  phaseName: string;
+  phaseShort: string;
   /** Número do "bife" (1-based, na ordem dos blocos). */
   bife: number;
   days: number;
@@ -227,12 +232,17 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): Bl
       return { name: a.name, color: a.color, count: n, w: ((n / items.length) * 100).toFixed(2) + "%" };
     }).filter(Boolean) as BlockAreaSeg[];
 
+    const phase = phaseMap[b.phaseId];
+
     return {
       id: b.id,
       name: b.name,
       short: b.name,
       theme: b.theme,
       color: b.color,
+      phaseId: b.phaseId,
+      phaseName: phase?.name ?? "",
+      phaseShort: phase?.short ?? "",
       bife: i + 1,
       days,
       daysLabel: `${days}d`,
