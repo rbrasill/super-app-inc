@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AREAS, PHASES, STATUSES } from "@/lib/data";
+import { AREAS, STATUSES } from "@/lib/data";
 import { useStore, type NewTaskInput } from "@/lib/store";
 import type { AreaId, PriorityId, StatusId, Task } from "@/lib/types";
 
 const EMPTY: NewTaskInput = {
   desc: "",
   area: "dev",
-  phase: PHASES[0],
+  blockId: "",
   who: "",
   prio: "media",
   status: "backlog",
@@ -18,8 +18,8 @@ const EMPTY: NewTaskInput = {
 };
 
 function toInput(t: Task): NewTaskInput {
-  const { desc, area, phase, who, prio, status, start, end, dep } = t;
-  return { desc, area, phase, who, prio, status, start, end, dep };
+  const { desc, area, blockId, who, prio, status, start, end, dep } = t;
+  return { desc, area, blockId, who, prio, status, start, end, dep };
 }
 
 const labelCls = "text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkFaint mb-[6px] block";
@@ -27,7 +27,7 @@ const fieldCls =
   "w-full bg-bg border border-line rounded-cardSm px-3 py-[9px] text-[13px] text-ink font-medium outline-none focus:border-primary transition-colors";
 
 export default function TaskModal() {
-  const { modal, tasks, addTask, updateTask, deleteTask, closeModal } = useStore();
+  const { modal, tasks, blocks, addTask, updateTask, deleteTask, closeModal } = useStore();
   const [form, setForm] = useState<NewTaskInput>(EMPTY);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -100,11 +100,12 @@ export default function TaskModal() {
               </select>
             </div>
             <div>
-              <label className={labelCls}>Fase</label>
-              <select className={fieldCls} value={form.phase} onChange={(e) => set("phase", e.target.value)}>
-                {PHASES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+              <label className={labelCls}>Bloco</label>
+              <select className={fieldCls} value={form.blockId} onChange={(e) => set("blockId", e.target.value)}>
+                <option value="">Sem bloco</option>
+                {blocks.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
                   </option>
                 ))}
               </select>

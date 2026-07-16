@@ -7,8 +7,8 @@ const thClass =
   "bg-chip text-left px-[14px] py-[9px] text-[10px] uppercase tracking-[0.5px] text-inkFaint font-extrabold";
 
 export default function GroupedBoard() {
-  const { filteredTasks, openTask } = useStore();
-  const grouped = getGrouped(filteredTasks);
+  const { filteredTasks, blocks, openTask } = useStore();
+  const grouped = getGrouped(filteredTasks, blocks);
   return (
     <div className="flex flex-col gap-4 pt-2">
       {grouped.map((g) => (
@@ -28,7 +28,7 @@ export default function GroupedBoard() {
             <thead>
               <tr>
                 <th className={`${thClass} pl-[18px]`}>Descrição</th>
-                <th className={thClass}>Fase</th>
+                <th className={thClass}>Bloco</th>
                 <th className={thClass}>Resp.</th>
                 <th className={thClass}>Prazo</th>
                 <th className={thClass}>Status</th>
@@ -42,8 +42,13 @@ export default function GroupedBoard() {
                   className="cursor-pointer transition-colors hover:bg-chip"
                 >
                   <td className="px-[18px] py-[11px] border-b border-line2 font-semibold">{r.desc}</td>
-                  <td className="px-[14px] py-[11px] border-b border-line2 font-semibold text-inkSoft whitespace-nowrap">
-                    {r.phaseShort}
+                  <td className="px-[14px] py-[11px] border-b border-line2 font-semibold whitespace-nowrap">
+                    <span
+                      className="text-[11px] font-bold px-2 py-[2px] rounded-[20px]"
+                      style={{ background: r.blockColor + "22", color: r.blockColor }}
+                    >
+                      {r.blockName}
+                    </span>
                   </td>
                   <td className="px-[14px] py-[11px] border-b border-line2 font-semibold">{r.whoLabel}</td>
                   <td className="px-[14px] py-[11px] border-b border-line2 font-semibold text-inkSoft whitespace-nowrap">

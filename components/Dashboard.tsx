@@ -1,6 +1,6 @@
 "use client";
 
-import { getAreaDist, getKpis, getLegend, getPhases, getRisks } from "@/lib/derive";
+import { getAreaDist, getBlocks, getKpis, getLegend, getRisks } from "@/lib/derive";
 import { useStore } from "@/lib/store";
 import { WarnIcon } from "./icons";
 import KpiCard from "./KpiCard";
@@ -25,11 +25,11 @@ function SectionTitle({
 }
 
 export default function Dashboard() {
-  const { tasks } = useStore();
+  const { tasks, blocks } = useStore();
   const kpis = getKpis(tasks);
   const areaDist = getAreaDist(tasks);
   const legend = getLegend();
-  const phases = getPhases(tasks);
+  const blockRows = getBlocks(tasks, blocks);
   const risks = getRisks(tasks);
 
   return (
@@ -51,7 +51,7 @@ export default function Dashboard() {
         <KpiCard bar="#FF6000" value={String(kpis.travadas)} label="Com trava / dependência" dark />
       </div>
 
-      {/* Distribuição + Fases */}
+      {/* Distribuição + Blocos */}
       <div className="grid grid-cols-[1.35fr_1fr] gap-4 mb-4">
         {/* Distribuição por área e status */}
         <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
@@ -87,25 +87,27 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Andamento por fase */}
+        {/* Andamento por bloco */}
         <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
           <SectionTitle accent="#0FA47A" className="mb-2">
-            Andamento por fase
+            Andamento por bloco
           </SectionTitle>
           <div>
-            {phases.map((p) => (
-              <div key={p.name} className="flex items-center gap-[13px] py-3 border-b border-line2">
-                <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: p.lampColor }} />
+            {blockRows.map((b) => (
+              <div key={b.id} className="flex items-center gap-[13px] py-3 border-b border-line2">
+                <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: b.lampColor }} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-extrabold text-[12.5px]">{p.short}</div>
-                  <div className="text-[11px] text-inkSoft font-semibold mt-[2px]">{p.meta}</div>
+                  <div className="font-extrabold text-[12.5px]">
+                    🥩 {b.short} <span className="text-inkFaint font-bold">· {b.daysLabel}</span>
+                  </div>
+                  <div className="text-[11px] text-inkSoft font-semibold mt-[2px]">{b.meta}</div>
                 </div>
                 <div className="w-[88px] flex-shrink-0">
                   <div className="bg-chip rounded-[20px] h-[7px] overflow-hidden">
-                    <div className="h-full bg-primary" style={{ width: p.pct }} />
+                    <div className="h-full" style={{ width: b.pct, background: b.color }} />
                   </div>
                   <div className="text-[10px] font-extrabold text-inkSoft text-right mt-1">
-                    {p.txt} · {p.pctLabel}
+                    {b.txt} · {b.pctLabel}
                   </div>
                 </div>
               </div>

@@ -1,5 +1,5 @@
-import { AREAS, PRIO, STATUSES } from "./data";
-import type { Task } from "./types";
+import { AREAS, BLOCKS, PRIO, STATUSES } from "./data";
+import type { Bloco, Task } from "./types";
 
 const areaName = (id: string) => AREAS.find((a) => a.id === id)?.name ?? id;
 const statusName = (id: string) => STATUSES.find((s) => s.id === id)?.name ?? id;
@@ -11,12 +11,17 @@ function escapeCell(value: string): string {
 }
 
 /** Gera um CSV (separador ; — compatível com Excel em pt-BR) e dispara o download. */
-export function exportTasksCsv(tasks: Task[], filename = "meu-inc-app-tarefas.csv"): void {
-  const header = ["Descrição", "Área", "Fase", "Responsável", "Prioridade", "Status", "Início", "Fim", "Dependência"];
+export function exportTasksCsv(
+  tasks: Task[],
+  blocks: Bloco[] = BLOCKS,
+  filename = "meu-inc-app-tarefas.csv"
+): void {
+  const blockName = (id: string) => blocks.find((b) => b.id === id)?.name ?? "Sem bloco";
+  const header = ["Descrição", "Área", "Bloco", "Responsável", "Prioridade", "Status", "Início", "Fim", "Dependência"];
   const rows = tasks.map((tk) => [
     tk.desc,
     areaName(tk.area),
-    tk.phase,
+    blockName(tk.blockId),
     tk.who || "—",
     PRIO[tk.prio]?.label ?? tk.prio,
     statusName(tk.status),
