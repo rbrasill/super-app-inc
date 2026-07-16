@@ -1,4 +1,4 @@
-import type { Area, Bloco, Person, Priority, PriorityId, Status, Task } from "./types";
+import type { Area, Bloco, Priority, PriorityId, Status, Task } from "./types";
 
 export const STATUSES: Status[] = [
   { id: "discovery", name: "Discovery", sub: "Pesquisa / ideia", color: "#64748B", soft: "#EEF1F5", light: true },
