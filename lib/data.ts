@@ -1,4 +1,4 @@
-import type { Area, Person, Priority, PriorityId, Status, Task } from "./types";
+import type { Area, Bloco, Person, Priority, PriorityId, Status, Task } from "./types";
 
 export const STATUSES: Status[] = [
   { id: "discovery", name: "Discovery", sub: "Pesquisa / ideia", color: "#64748B", soft: "#EEF1F5", light: true },
@@ -18,11 +18,52 @@ export const AREAS: Area[] = [
   { id: "parcerias", name: "Parcerias", color: "#EC4899" },
 ];
 
-export const PHASES: string[] = [
-  "v1.0 · Base sólida",
-  "v2.0 · Reter & renegociar",
-  "v3.0 · Receita recorrente",
-  "v4.0 · Plataforma financeira",
+/**
+ * Configuração do período do projeto. A estratégia de blocos fatia o projeto
+ * em blocos temáticos cujos prazos somados fecham o período total (90 dias),
+ * contados a partir do início oficial acordado.
+ */
+export const PROJECT = {
+  /** Início oficial do período (ISO). */
+  startDate: "2026-07-16",
+  /** Duração total do período, em dias. */
+  totalDays: 90,
+} as const;
+
+/**
+ * Blocos ("bifes") — fatias temáticas do projeto. São editáveis em tempo de
+ * execução (o usuário pode adicionar quantos quiser); estes são apenas a
+ * semente inicial, espelhando o exemplo da estratégia (35 + 30 + 15 + 10 = 90).
+ */
+export const BLOCKS: Bloco[] = [
+  {
+    id: "b1",
+    name: "Primeiro Acesso",
+    theme: "Login, onboarding e consentimento. A base: todo cliente passa por aqui antes de qualquer coisa.",
+    days: 35,
+    color: "#6366F1",
+  },
+  {
+    id: "b2",
+    name: "Cliente",
+    theme: "Tudo que impacta o cliente: boleto, documentos, obra, chamados e notificações.",
+    days: 30,
+    color: "#0EA5E9",
+  },
+  {
+    id: "b3",
+    name: "Financeiro",
+    theme: "Renegociação, cobrança acolhedora, conciliação, carteira e produtos de receita.",
+    days: 15,
+    color: "#10B981",
+  },
+  {
+    id: "b4",
+    name: "Assistência Técnica / SAC",
+    theme: "Atendimento ao cliente: chamados, assinatura de aditivos e pós-venda.",
+    days: 10,
+    color: "#F97316",
+  },
 ];
 
 export const PRIO: Record<PriorityId, Priority> = {
@@ -32,30 +73,30 @@ export const PRIO: Record<PriorityId, Priority> = {
 };
 
 export const TASKS: Task[] = [
-  { id: "t1", desc: "Desenvolver 2ª via de boleto e histórico de pagamentos", area: "dev", phase: PHASES[0], who: "Rafael Soares", prio: "alta", status: "execucao", start: "2026-07-01", end: "2026-08-15", dep: "" },
-  { id: "t2", desc: "Criar acompanhamento de obra com fotos por etapa", area: "dev", phase: PHASES[0], who: "Victor", prio: "media", status: "validacao", start: "2026-07-05", end: "2026-08-10", dep: "" },
-  { id: "t3", desc: "Publicar central de documentos (contrato, comprovantes)", area: "dev", phase: PHASES[0], who: "Rafael Soares", prio: "media", status: "pronto", start: "2026-06-20", end: "2026-07-30", dep: "" },
-  { id: "t4", desc: "Implantar login CPF + WhatsApp com consentimento LGPD", area: "dev", phase: PHASES[0], who: "Victor", prio: "alta", status: "entregue", start: "2026-06-01", end: "2026-06-28", dep: "" },
-  { id: "t5", desc: "Emitir parecer sobre cobrança acolhedora (CDC art. 42)", area: "juridico", phase: PHASES[1], who: "Jurídico", prio: "alta", status: "planejado", start: "2026-08-01", end: "2026-08-20", dep: "" },
-  { id: "t6", desc: "Homologar régua de renegociação e mínimo existencial", area: "cobranca", phase: PHASES[1], who: "", prio: "media", status: "backlog", start: "", end: "", dep: "depende de parecer jurídico" },
-  { id: "t7", desc: "Estruturar FIDC próprio p/ recapturar spread do pró-soluto", area: "financeiro", phase: PHASES[2], who: "", prio: "alta", status: "discovery", start: "", end: "", dep: "validação jurídica + cota subordinada" },
-  { id: "t8", desc: "Fechar parceiro emissor do cartão Meu INC (powered by)", area: "parcerias", phase: PHASES[2], who: "", prio: "alta", status: "execucao", start: "2026-09-01", end: "2026-11-30", dep: "depende de definição de BaaS" },
-  { id: "t9", desc: "Pesquisar consórcio white label via administradora autorizada", area: "parcerias", phase: PHASES[3], who: "", prio: "baixa", status: "discovery", start: "", end: "", dep: "" },
-  { id: "t10", desc: "Simular renegociação digital com proposta na hora", area: "dev", phase: PHASES[1], who: "Victor", prio: "media", status: "planejado", start: "2026-08-15", end: "2026-09-30", dep: "depende de homologação de régua" },
-  { id: "t11", desc: "Implementar push de lembrete de vencimento de parcela", area: "dev", phase: PHASES[0], who: "Rafael Soares", prio: "alta", status: "execucao", start: "2026-07-10", end: "2026-08-05", dep: "" },
-  { id: "t12", desc: "Publicar tela inicial com resumo do contrato do cliente", area: "dev", phase: PHASES[0], who: "Victor", prio: "media", status: "entregue", start: "2026-05-20", end: "2026-06-15", dep: "" },
-  { id: "t13", desc: "Criar chat de atendimento in-app com histórico", area: "dev", phase: PHASES[1], who: "", prio: "media", status: "backlog", start: "", end: "", dep: "" },
-  { id: "t14", desc: "Integrar assinatura eletrônica de aditivos contratuais", area: "dev", phase: PHASES[1], who: "Rafael Soares", prio: "alta", status: "planejado", start: "2026-09-01", end: "2026-10-10", dep: "" },
-  { id: "t15", desc: "Revisar termos de uso e política de privacidade (LGPD)", area: "juridico", phase: PHASES[0], who: "Jurídico", prio: "alta", status: "entregue", start: "2026-05-05", end: "2026-05-30", dep: "" },
-  { id: "t16", desc: "Analisar viabilidade regulatória do FIDC próprio", area: "juridico", phase: PHASES[2], who: "Jurídico", prio: "media", status: "discovery", start: "", end: "", dep: "aguarda estruturação financeira" },
-  { id: "t17", desc: "Implantar régua de comunicação amigável (D+5, D+15, D+30)", area: "cobranca", phase: PHASES[1], who: "", prio: "media", status: "execucao", start: "2026-08-01", end: "2026-09-15", dep: "" },
-  { id: "t18", desc: "Testar acordo parcelado self-service no app", area: "cobranca", phase: PHASES[1], who: "Victor", prio: "media", status: "validacao", start: "2026-08-20", end: "2026-09-20", dep: "" },
-  { id: "t19", desc: "Automatizar conciliação de recebíveis com o banco", area: "financeiro", phase: PHASES[2], who: "", prio: "alta", status: "planejado", start: "2026-10-01", end: "2026-11-30", dep: "depende de API do banco" },
-  { id: "t20", desc: "Estudar antecipação de recebíveis para o cliente", area: "financeiro", phase: PHASES[3], who: "", prio: "baixa", status: "discovery", start: "", end: "", dep: "" },
-  { id: "t21", desc: "Mapear parceiros de seguro residencial (bundle)", area: "parcerias", phase: PHASES[2], who: "", prio: "baixa", status: "backlog", start: "", end: "", dep: "" },
-  { id: "t22", desc: "Avaliar marketplace de serviços para o morador", area: "parcerias", phase: PHASES[3], who: "", prio: "baixa", status: "discovery", start: "", end: "", dep: "" },
-  { id: "t23", desc: "Criar carteira digital Meu INC (saldo e extrato)", area: "dev", phase: PHASES[2], who: "Victor", prio: "alta", status: "planejado", start: "2026-10-15", end: "2026-12-20", dep: "depende de parceiro emissor" },
-  { id: "t24", desc: "Disponibilizar segunda via de contrato em PDF", area: "dev", phase: PHASES[0], who: "Rafael Soares", prio: "media", status: "pronto", start: "2026-06-25", end: "2026-07-25", dep: "" },
+  { id: "t1", desc: "Desenvolver 2ª via de boleto e histórico de pagamentos", area: "dev", blockId: "b2", who: "Rafael Soares", prio: "alta", status: "execucao", start: "2026-07-01", end: "2026-08-15", dep: "" },
+  { id: "t2", desc: "Criar acompanhamento de obra com fotos por etapa", area: "dev", blockId: "b2", who: "Victor", prio: "media", status: "validacao", start: "2026-07-05", end: "2026-08-10", dep: "" },
+  { id: "t3", desc: "Publicar central de documentos (contrato, comprovantes)", area: "dev", blockId: "b2", who: "Rafael Soares", prio: "media", status: "pronto", start: "2026-06-20", end: "2026-07-30", dep: "" },
+  { id: "t4", desc: "Implantar login CPF + WhatsApp com consentimento LGPD", area: "dev", blockId: "b1", who: "Victor", prio: "alta", status: "entregue", start: "2026-06-01", end: "2026-06-28", dep: "" },
+  { id: "t5", desc: "Emitir parecer sobre cobrança acolhedora (CDC art. 42)", area: "juridico", blockId: "b3", who: "Jurídico", prio: "alta", status: "planejado", start: "2026-08-01", end: "2026-08-20", dep: "" },
+  { id: "t6", desc: "Homologar régua de renegociação e mínimo existencial", area: "cobranca", blockId: "b3", who: "", prio: "media", status: "backlog", start: "", end: "", dep: "depende de parecer jurídico" },
+  { id: "t7", desc: "Estruturar FIDC próprio p/ recapturar spread do pró-soluto", area: "financeiro", blockId: "b3", who: "", prio: "alta", status: "discovery", start: "", end: "", dep: "validação jurídica + cota subordinada" },
+  { id: "t8", desc: "Fechar parceiro emissor do cartão Meu INC (powered by)", area: "parcerias", blockId: "b3", who: "", prio: "alta", status: "execucao", start: "2026-09-01", end: "2026-11-30", dep: "depende de definição de BaaS" },
+  { id: "t9", desc: "Pesquisar consórcio white label via administradora autorizada", area: "parcerias", blockId: "b3", who: "", prio: "baixa", status: "discovery", start: "", end: "", dep: "" },
+  { id: "t10", desc: "Simular renegociação digital com proposta na hora", area: "dev", blockId: "b3", who: "Victor", prio: "media", status: "planejado", start: "2026-08-15", end: "2026-09-30", dep: "depende de homologação de régua" },
+  { id: "t11", desc: "Implementar push de lembrete de vencimento de parcela", area: "dev", blockId: "b2", who: "Rafael Soares", prio: "alta", status: "execucao", start: "2026-07-10", end: "2026-08-05", dep: "" },
+  { id: "t12", desc: "Publicar tela inicial com resumo do contrato do cliente", area: "dev", blockId: "b1", who: "Victor", prio: "media", status: "entregue", start: "2026-05-20", end: "2026-06-15", dep: "" },
+  { id: "t13", desc: "Criar chat de atendimento in-app com histórico", area: "dev", blockId: "b4", who: "", prio: "media", status: "backlog", start: "", end: "", dep: "" },
+  { id: "t14", desc: "Integrar assinatura eletrônica de aditivos contratuais", area: "dev", blockId: "b4", who: "Rafael Soares", prio: "alta", status: "planejado", start: "2026-09-01", end: "2026-10-10", dep: "" },
+  { id: "t15", desc: "Revisar termos de uso e política de privacidade (LGPD)", area: "juridico", blockId: "b1", who: "Jurídico", prio: "alta", status: "entregue", start: "2026-05-05", end: "2026-05-30", dep: "" },
+  { id: "t16", desc: "Analisar viabilidade regulatória do FIDC próprio", area: "juridico", blockId: "b3", who: "Jurídico", prio: "media", status: "discovery", start: "", end: "", dep: "aguarda estruturação financeira" },
+  { id: "t17", desc: "Implantar régua de comunicação amigável (D+5, D+15, D+30)", area: "cobranca", blockId: "b3", who: "", prio: "media", status: "execucao", start: "2026-08-01", end: "2026-09-15", dep: "" },
+  { id: "t18", desc: "Testar acordo parcelado self-service no app", area: "cobranca", blockId: "b3", who: "Victor", prio: "media", status: "validacao", start: "2026-08-20", end: "2026-09-20", dep: "" },
+  { id: "t19", desc: "Automatizar conciliação de recebíveis com o banco", area: "financeiro", blockId: "b3", who: "", prio: "alta", status: "planejado", start: "2026-10-01", end: "2026-11-30", dep: "depende de API do banco" },
+  { id: "t20", desc: "Estudar antecipação de recebíveis para o cliente", area: "financeiro", blockId: "b3", who: "", prio: "baixa", status: "discovery", start: "", end: "", dep: "" },
+  { id: "t21", desc: "Mapear parceiros de seguro residencial (bundle)", area: "parcerias", blockId: "b2", who: "", prio: "baixa", status: "backlog", start: "", end: "", dep: "" },
+  { id: "t22", desc: "Avaliar marketplace de serviços para o morador", area: "parcerias", blockId: "b2", who: "", prio: "baixa", status: "discovery", start: "", end: "", dep: "" },
+  { id: "t23", desc: "Criar carteira digital Meu INC (saldo e extrato)", area: "dev", blockId: "b3", who: "Victor", prio: "alta", status: "planejado", start: "2026-10-15", end: "2026-12-20", dep: "depende de parceiro emissor" },
+  { id: "t24", desc: "Disponibilizar segunda via de contrato em PDF", area: "dev", blockId: "b2", who: "Rafael Soares", prio: "media", status: "pronto", start: "2026-06-25", end: "2026-07-25", dep: "" },
 ];
 
 /** [nome, papel, responsabilidade] */

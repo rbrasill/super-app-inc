@@ -5,10 +5,10 @@ import { useStore } from "@/lib/store";
 import { ExportIcon, PlusIcon, SearchIcon } from "./icons";
 
 export default function Topbar({ title, sub }: { title: string; sub: string }) {
-  const { search, setSearch, tasks, filteredTasks, hasActiveFilters, openNew } = useStore();
+  const { search, setSearch, tasks, filteredTasks, blocks, hasActiveFilters, openNew } = useStore();
 
   const handleExport = () => {
-    exportTasksCsv(hasActiveFilters ? filteredTasks : tasks);
+    exportTasksCsv(hasActiveFilters ? filteredTasks : tasks, blocks);
   };
 
   return (

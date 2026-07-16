@@ -1,6 +1,6 @@
 "use client";
 
-import { AREAS, PHASES } from "@/lib/data";
+import { AREAS } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import type { AreaId, Sub } from "@/lib/types";
 import GroupedBoard from "./GroupedBoard";
@@ -10,7 +10,7 @@ const selectCls =
   "bg-transparent border-none outline-none text-[12.5px] font-bold text-ink cursor-pointer appearance-none pr-1";
 
 export function BoardControls({ sub, setSub }: { sub: Sub; setSub: (s: Sub) => void }) {
-  const { areaFilter, setAreaFilter, phaseFilter, setPhaseFilter, filteredTasks, hasActiveFilters, clearFilters } =
+  const { areaFilter, setAreaFilter, blockFilter, setBlockFilter, blocks, filteredTasks, hasActiveFilters, clearFilters } =
     useStore();
 
   const segBtn = (active: boolean) =>
@@ -47,14 +47,14 @@ export function BoardControls({ sub, setSub }: { sub: Sub; setSub: (s: Sub) => v
         </select>
       </div>
 
-      {/* Filtro de Fase */}
+      {/* Filtro de Bloco */}
       <div className="flex items-center gap-2 bg-panel border border-line rounded-cardSm px-3 py-[7px] shadow-soft">
-        <span className="text-[10px] font-extrabold uppercase tracking-[0.6px] text-inkFaint">Fase</span>
-        <select className={selectCls} value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)}>
-          <option value="all">Todas ▾</option>
-          {PHASES.map((p) => (
-            <option key={p} value={p}>
-              {p.split(" · ")[0]}
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.6px] text-inkFaint">Bloco</span>
+        <select className={selectCls} value={blockFilter} onChange={(e) => setBlockFilter(e.target.value)}>
+          <option value="all">Todos ▾</option>
+          {blocks.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
             </option>
           ))}
         </select>

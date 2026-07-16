@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import BlockModal from "@/components/BlockModal";
+import BlocosView from "@/components/BlocosView";
 import BoardView, { BoardControls } from "@/components/board/BoardView";
 import Dashboard from "@/components/Dashboard";
 import PeopleGrid from "@/components/PeopleGrid";
@@ -13,6 +15,7 @@ import type { Sub, View } from "@/lib/types";
 
 const TITLES: Record<View, [string, string]> = {
   board: ["Quadro de execução", "Acompanhe as entregas do projeto"],
+  blocks: ["Blocos (bifes)", "O app fatiado em blocos temáticos com prazo próprio"],
   dash: ["Dashboard geral", "Visão consolidada do projeto para o time"],
   sponsor: ["Visão do patrocinador", "Resumo executivo · sem detalhe operacional"],
   people: ["Pessoas & papéis", "Quem faz o quê no projeto"],
@@ -36,6 +39,7 @@ export default function Home() {
 
           <div className="sc-scroll flex-1 overflow-auto px-[30px] pt-[6px] pb-10">
             {view === "board" && <BoardView sub={sub} />}
+            {view === "blocks" && <BlocosView />}
             {view === "dash" && <Dashboard />}
             {view === "sponsor" && <SponsorView />}
             {view === "people" && <PeopleGrid />}
@@ -43,6 +47,7 @@ export default function Home() {
         </div>
 
         <TaskModal />
+        <BlockModal />
       </div>
     </StoreProvider>
   );

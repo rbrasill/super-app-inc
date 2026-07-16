@@ -1,6 +1,6 @@
-import { AREAS, AV_PALETTE, PEOPLE_RAW, PHASES, PRIO, STATUSES } from "./data";
+import { AREAS, AV_PALETTE, PEOPLE_RAW, PROJECT, PRIO, STATUSES } from "./data";
 import { THEME } from "./theme";
-import type { Area, DecoratedTask, Status, Task } from "./types";
+import type { Area, Bloco, DecoratedTask, Status, Task } from "./types";
 
 const areaMap: Record<string, Area> = Object.fromEntries(AREAS.map((a) => [a.id, a]));
 const statusMap: Record<string, Status> = Object.fromEntries(STATUSES.map((s) => [s.id, s]));
@@ -11,10 +11,21 @@ const fmt = (d: string): string => {
   return `${p[2]}/${p[1]}`;
 };
 
-export function decorate(tk: Task): DecoratedTask {
+/** Soma `n` dias a uma data ISO (yyyy-mm-dd) e devolve outra data ISO. */
+function addDays(iso: string, n: number): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+const blockMapOf = (blocks: Bloco[]): Record<string, Bloco> =>
+  Object.fromEntries(blocks.map((b) => [b.id, b]));
+
+export function decorate(tk: Task, blocks: Record<string, Bloco>): DecoratedTask {
   const a = areaMap[tk.area];
   const p = PRIO[tk.prio || "media"];
   const st = statusMap[tk.status];
+  const bl = blocks[tk.blockId];
   const hasDates = !!(tk.start || tk.end);
   return {
     ...tk,
@@ -30,7 +41,8 @@ export function decorate(tk: Task): DecoratedTask {
     statusName: st.name,
     statusColor: st.color,
     statusSoft: st.soft,
-    phaseShort: tk.phase ? tk.phase.split(" · ")[0] : "—",
+    blockName: bl ? bl.name : "Sem bloco",
+    blockColor: bl ? bl.color : THEME.inkFaint,
     depText: tk.dep || "",
     hasDep: !!tk.dep,
   };
@@ -42,9 +54,10 @@ export interface BoardColumn extends Status {
   empty: boolean;
 }
 
-export function getBoard(tasks: Task[]): BoardColumn[] {
+export function getBoard(tasks: Task[], blocks: Bloco[]): BoardColumn[] {
+  const bm = blockMapOf(blocks);
   return STATUSES.map((s) => {
-    const items = tasks.filter((tk) => tk.status === s.id).map(decorate);
+    const items = tasks.filter((tk) => tk.status === s.id).map((tk) => decorate(tk, bm));
     return { ...s, count: items.length, tasks: items, empty: items.length === 0 };
   });
 }
@@ -57,9 +70,10 @@ export interface GroupedArea {
   rows: DecoratedTask[];
 }
 
-export function getGrouped(tasks: Task[]): GroupedArea[] {
+export function getGrouped(tasks: Task[], blocks: Bloco[]): GroupedArea[] {
+  const bm = blockMapOf(blocks);
   return AREAS.map((a) => {
-    const rows = tasks.filter((tk) => tk.area === a.id).map(decorate);
+    const rows = tasks.filter((tk) => tk.area === a.id).map((tk) => decorate(tk, bm));
     return { id: a.id, name: a.name, color: a.color, count: rows.length, rows };
   }).filter((g) => g.count > 0);
 }
@@ -122,23 +136,67 @@ export function getLegend(): { name: string; color: string }[] {
   return STATUSES.map((s) => ({ name: s.name, color: s.color }));
 }
 
-export interface PhaseRow {
+/** Segmento da distribuição por área dentro de um bloco. */
+export interface BlockAreaSeg {
+  name: string;
+  color: string;
+  count: number;
+  w: string;
+}
+
+export interface BlockRow {
+  id: string;
   name: string;
   short: string;
+  theme: string;
+  color: string;
+  /** Número do "bife" (1-based, na ordem dos blocos). */
+  bife: number;
+  days: number;
+  daysLabel: string;
+  /** Posição na timeline do período (0–100%). */
+  offsetPct: string;
+  widthPct: string;
+  /** Dia inicial/final dentro do período (1-based). */
+  startDay: number;
+  endDay: number;
+  dateRange: string;
+  weekRange: string;
+  /** Progresso / semáforo. */
+  count: number;
+  done: number;
+  blocked: number;
   lampColor: string;
   txt: string;
   pct: string;
   pctLabel: string;
   meta: string;
   sponsorMeta: string;
+  /** Distribuição das tarefas do bloco entre as áreas. */
+  areaSegs: BlockAreaSeg[];
+  empty: boolean;
 }
 
-export function getPhases(tasks: Task[]): PhaseRow[] {
-  return PHASES.map((p) => {
-    const items = tasks.filter((tk) => tk.phase === p);
+export interface BlocksSummary {
+  totalDays: number;
+  allocatedDays: number;
+  /** Diferença entre o alocado e o período (0 = encaixe perfeito). */
+  overflowDays: number;
+  weeks: number;
+  fitLabel: string;
+  fitColor: string;
+}
+
+const projectStart = (project = PROJECT) => project.startDate;
+
+export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): BlockRow[] {
+  let cursor = 0; // dias acumulados antes do bloco atual
+  return blocks.map((b, i) => {
+    const items = tasks.filter((tk) => tk.blockId === b.id);
     const done = items.filter((tk) => tk.status === "entregue").length;
     const blocked = items.filter((tk) => tk.dep).length;
     const pc = items.length ? Math.round((done / items.length) * 100) : 0;
+
     let lampColor = "#10B981";
     let txt = "No ritmo";
     if (blocked > 0 && pc < 50) {
@@ -148,17 +206,77 @@ export function getPhases(tasks: Task[]): PhaseRow[] {
       lampColor = "#F59E0B";
       txt = "Atenção";
     }
+    if (items.length === 0) {
+      lampColor = THEME.inkFaint;
+      txt = "Sem tarefas";
+    }
+
+    const days = Math.max(0, b.days);
+    const startDay = cursor + 1;
+    const endDay = cursor + days;
+    const startDate = addDays(projectStart(project), cursor);
+    const endDate = addDays(projectStart(project), Math.max(cursor, endDay - 1));
+    const weekStart = Math.floor(cursor / 7) + 1;
+    const weekEnd = Math.max(weekStart, Math.ceil(endDay / 7));
+    cursor = endDay;
+
+    // Distribuição por área dentro do bloco.
+    const areaSegs: BlockAreaSeg[] = AREAS.map((a) => {
+      const n = items.filter((tk) => tk.area === a.id).length;
+      if (!n) return null;
+      return { name: a.name, color: a.color, count: n, w: ((n / items.length) * 100).toFixed(2) + "%" };
+    }).filter(Boolean) as BlockAreaSeg[];
+
     return {
-      name: p,
-      short: p.split(" · ")[0],
+      id: b.id,
+      name: b.name,
+      short: b.name,
+      theme: b.theme,
+      color: b.color,
+      bife: i + 1,
+      days,
+      daysLabel: `${days}d`,
+      offsetPct: ((cursor - days) / project.totalDays) * 100 + "%",
+      widthPct: (days / project.totalDays) * 100 + "%",
+      startDay,
+      endDay,
+      dateRange: `${fmt(startDate)} → ${fmt(endDate)}`,
+      weekRange: weekStart === weekEnd ? `Semana ${weekStart}` : `Semanas ${weekStart}–${weekEnd}`,
+      count: items.length,
+      done,
+      blocked,
       lampColor,
       txt,
       pct: pc + "%",
       pctLabel: pc + "%",
-      meta: `${items.length} tarefas · ${done} entregue(s)` + (blocked ? ` · ${blocked} com trava` : ""),
+      meta: `${items.length} tarefa(s) · ${done} entregue(s)` + (blocked ? ` · ${blocked} com trava` : ""),
       sponsorMeta: `${done} de ${items.length} entregue(s)`,
+      areaSegs,
+      empty: items.length === 0,
     };
   });
+}
+
+export function getBlocksSummary(blocks: Bloco[], project = PROJECT): BlocksSummary {
+  const allocatedDays = blocks.reduce((s, b) => s + Math.max(0, b.days), 0);
+  const overflowDays = allocatedDays - project.totalDays;
+  let fitLabel = "Encaixe perfeito nos " + project.totalDays + " dias";
+  let fitColor = "#10B981";
+  if (overflowDays > 0) {
+    fitLabel = `${overflowDays} dia(s) além do período`;
+    fitColor = "#EF4444";
+  } else if (overflowDays < 0) {
+    fitLabel = `${Math.abs(overflowDays)} dia(s) livre(s) no período`;
+    fitColor = "#F59E0B";
+  }
+  return {
+    totalDays: project.totalDays,
+    allocatedDays,
+    overflowDays,
+    weeks: Math.round(project.totalDays / 7),
+    fitLabel,
+    fitColor,
+  };
 }
 
 export interface RiskRow {

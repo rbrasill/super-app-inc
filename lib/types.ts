@@ -26,6 +26,23 @@ export interface Area {
   color: string;
 }
 
+/**
+ * Bloco ("bife") — fatia temática do projeto. Cada bloco agrupa tarefas
+ * (o "pacote completo": tela + back + regra + cadastro) e recebe um prazo
+ * próprio em dias; a soma dos blocos fecha o período do projeto.
+ */
+export interface Bloco {
+  id: string;
+  /** Nome do bloco (ex.: "Primeiro Acesso"). */
+  name: string;
+  /** Tema / o que entra no bloco. */
+  theme: string;
+  /** Dias alocados para o bloco. */
+  days: number;
+  /** Cor de destaque. */
+  color: string;
+}
+
 export interface Priority {
   label: string;
   bg: string;
@@ -36,7 +53,8 @@ export interface Task {
   id: string;
   desc: string;
   area: AreaId;
-  phase: string;
+  /** Bloco ao qual a tarefa pertence ("" = sem bloco). */
+  blockId: string;
   who: string;
   prio: PriorityId;
   status: StatusId;
@@ -65,10 +83,11 @@ export interface DecoratedTask extends Task {
   statusName: string;
   statusColor: string;
   statusSoft: string;
-  phaseShort: string;
+  blockName: string;
+  blockColor: string;
   depText: string;
   hasDep: boolean;
 }
 
-export type View = "board" | "dash" | "sponsor" | "people";
+export type View = "board" | "blocks" | "dash" | "sponsor" | "people";
 export type Sub = "kanban" | "grouped";

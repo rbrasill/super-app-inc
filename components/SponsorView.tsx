@@ -1,6 +1,6 @@
 "use client";
 
-import { getDecisions, getDelivered, getKpis, getPhases } from "@/lib/derive";
+import { getBlocks, getDecisions, getDelivered, getKpis } from "@/lib/derive";
 import { useStore } from "@/lib/store";
 import KpiCard from "./KpiCard";
 
@@ -14,9 +14,9 @@ function SectionTitle({ accent, children }: { accent: string; children: React.Re
 }
 
 export default function SponsorView() {
-  const { tasks } = useStore();
+  const { tasks, blocks } = useStore();
   const kpis = getKpis(tasks);
-  const phases = getPhases(tasks);
+  const blockRows = getBlocks(tasks, blocks);
   const decisions = getDecisions(tasks);
   const delivered = getDelivered(tasks);
 
@@ -55,21 +55,21 @@ export default function SponsorView() {
 
       {/* Semáforo + Decisões/Entregas */}
       <div className="grid grid-cols-2 gap-4">
-        {/* Semáforo por fase */}
+        {/* Semáforo por bloco */}
         <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
-          <SectionTitle accent="#0FA47A">Semáforo por fase</SectionTitle>
-          {phases.map((p) => (
-            <div key={p.name} className="flex items-center gap-[13px] py-3 border-b border-line2">
-              <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: p.lampColor }} />
+          <SectionTitle accent="#0FA47A">Semáforo por bloco</SectionTitle>
+          {blockRows.map((b) => (
+            <div key={b.id} className="flex items-center gap-[13px] py-3 border-b border-line2">
+              <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: b.lampColor }} />
               <div className="flex-1 min-w-0">
-                <div className="font-extrabold text-[12.5px]">{p.short}</div>
+                <div className="font-extrabold text-[12.5px]">🥩 {b.short}</div>
                 <div className="text-[11px] text-inkSoft font-semibold mt-[2px]">
-                  {p.txt} · {p.sponsorMeta}
+                  {b.txt} · {b.sponsorMeta}
                 </div>
               </div>
               <div className="w-[70px] flex-shrink-0">
                 <div className="bg-chip rounded-[20px] h-[7px] overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: p.pct }} />
+                  <div className="h-full" style={{ width: b.pct, background: b.color }} />
                 </div>
               </div>
             </div>

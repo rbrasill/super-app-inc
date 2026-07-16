@@ -47,6 +47,16 @@ export function PeopleIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function BlocksIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" strokeWidth="1.9" {...base} {...props}>
+      <path d="M12 2.5 21 7l-9 4.5L3 7z" />
+      <path d="M3 12l9 4.5L21 12" />
+      <path d="M3 17l9 4.5L21 17" />
+    </svg>
+  );
+}
+
 export function SearchIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" width="15" height="15" strokeWidth="2" fill="none" strokeLinecap="round" {...props}>
