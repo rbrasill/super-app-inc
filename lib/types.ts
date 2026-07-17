@@ -101,6 +101,8 @@ export interface DecoratedTask extends Task {
   blockColor: string;
   depText: string;
   hasDep: boolean;
+  avBg: string;
+  avColor: string;
 }
 
 export type View = "board" | "blocks" | "dash" | "sponsor" | "people";

@@ -18,9 +18,9 @@ function toInput(b: Bloco): BlockInput {
   return { name, theme, days, color, phaseId };
 }
 
-const labelCls = "text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkFaint mb-[6px] block";
+const labelCls = "text-[11px] font-extrabold uppercase tracking-[0.4px] text-inkLabel mb-[6px] block";
 const fieldCls =
-  "w-full bg-bg border border-line rounded-cardSm px-3 py-[9px] text-[13px] text-ink font-medium outline-none focus:border-primary transition-colors";
+  "w-full bg-panel border border-inputLine rounded-[11px] px-[13px] py-[11px] text-[13px] text-ink font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors";
 
 export default function BlockModal() {
   const { blockModal, blocks, tasks, addBlock, updateBlock, deleteBlock, closeBlockModal } = useStore();
@@ -52,15 +52,22 @@ export default function BlockModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeBlockModal}>
+    <div
+      className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(30,20,10,.32)" }}
+      onClick={closeBlockModal}
+    >
       <div
-        className="bg-panel rounded-2xl shadow-cardHover w-full max-w-[520px] max-h-[90vh] overflow-auto"
+        className="modal-panel bg-panel rounded-[20px] w-full max-w-[520px] max-h-[90vh] overflow-auto"
+        style={{ boxShadow: "0 30px 80px rgba(11,11,11,.28)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
-        <div className="px-6 pt-5 pb-4 border-b border-line2 flex items-center gap-3">
-          <span className="text-[20px] leading-none">🥩</span>
-          <div className="font-head text-[18px] font-extrabold tracking-[-0.02em] flex-1">
+        <div className="px-6 pt-5 pb-4 border-b border-line flex items-center gap-3">
+          <div className="w-[34px] h-[34px] rounded-[10px] bg-softOrange flex items-center justify-center flex-shrink-0 text-[18px] leading-none">
+            🥩
+          </div>
+          <div className="font-head text-[16px] font-extrabold tracking-[-0.02em] flex-1 text-inkDark">
             {isEdit ? "Editar bloco" : "Novo bloco"}
           </div>
           <button
@@ -139,7 +146,7 @@ export default function BlockModal() {
         </div>
 
         {/* Rodapé */}
-        <div className="px-6 py-4 border-t border-line2 flex items-center gap-3">
+        <div className="px-6 py-4 border-t border-line flex items-center gap-[10px]">
           {isEdit && editing && (
             <div className="mr-auto">
               {confirmDelete ? (
@@ -149,7 +156,7 @@ export default function BlockModal() {
                   </span>
                   <button
                     onClick={() => deleteBlock(editing.id)}
-                    className="px-3 py-[7px] rounded-cardSm text-[12.5px] font-bold cursor-pointer border border-[#EF4444] bg-[#EF4444] text-white hover:brightness-105 transition-[filter]"
+                    className="px-3 py-[7px] rounded-[11px] text-[12.5px] font-bold cursor-pointer border border-[#EF4444] bg-[#EF4444] text-white hover:brightness-105 transition-[filter]"
                   >
                     Sim, excluir
                   </button>
@@ -163,7 +170,7 @@ export default function BlockModal() {
               ) : (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="px-3 py-[9px] rounded-cardSm text-[13px] font-bold cursor-pointer border border-line bg-transparent text-[#D14328] hover:bg-[#FDE4DE] transition-colors"
+                  className="px-3 py-[10px] rounded-[11px] text-[13px] font-bold cursor-pointer border border-inputLine bg-panel text-[#D14328] hover:bg-[#FDE4DE] transition-colors"
                 >
                   Excluir
                 </button>
@@ -172,14 +179,14 @@ export default function BlockModal() {
           )}
           <button
             onClick={closeBlockModal}
-            className="px-4 py-[9px] rounded-cardSm text-[13px] font-bold cursor-pointer border border-line bg-transparent text-inkSoft hover:bg-chip hover:text-ink transition-colors"
+            className="px-[18px] py-[10px] rounded-[11px] text-[13px] font-bold cursor-pointer border border-inputLine bg-panel text-inkSoft hover:bg-chip hover:text-ink transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={submit}
             disabled={!form.name.trim()}
-            className="px-5 py-[9px] rounded-cardSm text-[13px] font-bold cursor-pointer border border-primary bg-primary text-white shadow-btn hover:brightness-105 transition-[filter] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-[10px] rounded-[11px] text-[13px] font-extrabold cursor-pointer border-none bg-primary text-white shadow-btn hover:brightness-[1.06] transition-[filter] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isEdit ? "Salvar bloco" : "Adicionar bloco"}
           </button>

@@ -1,5 +1,5 @@
 import { AREAS, AV_PALETTE, PEOPLE_RAW, PHASES, PROJECT, PRIO, STATUSES } from "./data";
-import { THEME } from "./theme";
+import { THEME, whoAvatar } from "./theme";
 import type { Area, Bloco, DecoratedTask, Fase, Status, Task } from "./types";
 
 const areaMap: Record<string, Area> = Object.fromEntries(AREAS.map((a) => [a.id, a]));
@@ -46,6 +46,7 @@ export function decorate(tk: Task, blocks: Record<string, Bloco>): DecoratedTask
     blockColor: bl ? bl.color : THEME.inkFaint,
     depText: tk.dep || "",
     hasDep: !!tk.dep,
+    ...whoAvatar(tk.who),
   };
 }
 

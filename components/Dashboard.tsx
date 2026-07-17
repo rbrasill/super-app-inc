@@ -37,18 +37,18 @@ export default function Dashboard() {
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-[14px] mb-4">
         <KpiCard bar="#0FA47A" value={String(kpis.total)} label="Tarefas no projeto" />
-        <KpiCard bar="#FF6000" value={String(kpis.andamento)} label="Em andamento" />
+        <KpiCard bar="#F59E0B" value={String(kpis.andamento)} label="Em andamento" />
         <KpiCard
           bar="#10B981"
           value={
             <>
               {kpis.entregue}
-              <span className="text-[17px] font-extrabold text-inkFaint"> / {kpis.total}</span>
+              <span className="text-[18px] font-extrabold text-inkMute"> / {kpis.total}</span>
             </>
           }
           label="Entregues"
         />
-        <KpiCard bar="#FF6000" value={String(kpis.travadas)} label="Com trava / dependência" dark />
+        <KpiCard bar="#FF6000" value={String(kpis.travadas)} label="Com trava / dependência" tint />
       </div>
 
       {/* Distribuição + Blocos */}

@@ -33,11 +33,11 @@ export default function Home() {
         <Sidebar view={view} setView={setView} />
 
         <div className="flex-1 flex flex-col min-w-0">
-          <Topbar title={title} sub={subtitle} />
+          <Topbar title={title} sub={subtitle} view={view} />
 
           {view === "board" && <BoardControls sub={sub} setSub={setSub} />}
 
-          <div className="sc-scroll flex-1 overflow-auto px-[30px] pt-[6px] pb-10">
+          <div key={view} className="sc-scroll view-anim flex-1 overflow-auto px-[34px] pt-[6px] pb-10">
             {view === "board" && <BoardView sub={sub} />}
             {view === "blocks" && <BlocosView />}
             {view === "dash" && <Dashboard />}

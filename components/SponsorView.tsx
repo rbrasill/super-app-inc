@@ -23,15 +23,18 @@ export default function SponsorView() {
   return (
     <div className="pt-[14px]">
       {/* Hero */}
-      <div className="bg-kpiDark text-white rounded-[18px] px-7 py-[26px] mb-4 relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 w-[170px] h-[170px] bg-accent opacity-20 rounded-full" />
-        <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-accent">
+      <div
+        className="rounded-[18px] border border-warnLine px-[30px] py-[26px] mb-4 relative overflow-hidden"
+        style={{ background: "linear-gradient(120deg, #FFF3EA 0%, #FFFBF6 65%)" }}
+      >
+        <div className="absolute -right-10 -top-10 w-[180px] h-[180px] bg-primary opacity-[0.08] rounded-full" />
+        <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-primary">
           Resumo executivo · jul/26
         </div>
-        <div className="font-head text-[24px] font-extrabold mt-[8px] mb-[6px]">
+        <div className="font-head text-[24px] font-extrabold mt-2 mb-[6px] text-inkDark tracking-[-0.02em]">
           Meu INC App · andamento geral
         </div>
-        <div className="text-[13px] text-white/70 font-medium max-w-[580px] leading-[1.5]">
+        <div className="text-[13px] text-inkSoft font-medium max-w-[600px] leading-[1.5]">
           Visão de uma página para o patrocinador: onde o projeto está, o que já saiu e o que aguarda decisão. Sem
           detalhe operacional — esse fica no quadro do time.
         </div>
@@ -44,13 +47,13 @@ export default function SponsorView() {
           value={
             <>
               {kpis.pct}
-              <span className="text-[17px] text-inkFaint">%</span>
+              <span className="text-[18px] text-inkMute">%</span>
             </>
           }
           label="Concluído do previsto"
         />
         <KpiCard bar="#10B981" value={String(kpis.entregue)} label="Entregas no ar" />
-        <KpiCard bar="#FF6000" value={String(kpis.decisions)} label="Aguardando sua decisão" dark />
+        <KpiCard bar="#FF6000" value={String(kpis.decisions)} label="Aguardando sua decisão" tint />
       </div>
 
       {/* Semáforo + Decisões/Entregas */}
@@ -82,7 +85,7 @@ export default function SponsorView() {
             <SectionTitle accent="#FF6000">Decisões que dependem de você</SectionTitle>
             {decisions.map((d) => (
               <div key={d.n} className="flex gap-3 items-start py-[11px] border-b border-line2">
-                <div className="w-6 h-6 rounded-lg bg-kpiDark text-accent font-extrabold text-[12px] flex items-center justify-center flex-shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-primary text-white font-extrabold text-[12px] flex items-center justify-center flex-shrink-0">
                   {d.n}
                 </div>
                 <div className="min-w-0">
