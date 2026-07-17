@@ -101,23 +101,34 @@ export function WarnIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** Cabeça de boi em traço fino — usado como marca-d'água sutil ("o boi é o app"). */
+/** Cabeça de boi em traço fino (3/4) — marca-d'água sutil ("o boi é o app"). */
 export function OxIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 64 64" width="64" height="64" strokeWidth="2.4" {...base} {...props}>
-      {/* chifres */}
-      <path d="M21 21c-7-3-12-11-8-15 2 5 6 8 12 10" />
-      <path d="M43 21c7-3 12-11 8-15-2 5-6 8-12 10" />
-      {/* orelhas */}
-      <path d="M20 24c-6-1-9 2-8 7" />
-      <path d="M44 24c6-1 9 2 8 7" />
-      {/* cabeça */}
-      <path d="M21 21c-4 4-5 12 0 19 3 4 6 6 11 6s8-2 11-6c5-7 4-15 0-19" />
-      {/* focinho + narinas */}
-      <path d="M25 42c0 5 14 5 14 0" />
-      <path d="M29 45h.02M35 45h.02" />
-      {/* olhos */}
-      <path d="M26 31h.02M38 31h.02" />
+    <svg viewBox="0 0 200 200" width="200" height="200" strokeWidth="4" {...base} {...props}>
+      {/* topete no alto da cabeça */}
+      <path d="M92 40 C 96 30, 106 30, 108 40 C 112 32, 120 34, 118 44" />
+      {/* varredura superior (dorso sumindo à direita) */}
+      <path d="M112 42 C 142 32, 168 44, 182 66" />
+      {/* orelha esquerda */}
+      <path d="M84 62 C 60 52, 44 64, 48 84 C 51 100, 70 102, 82 92" />
+      {/* orelha direita (atrás) */}
+      <path d="M126 52 C 148 50, 164 62, 158 82 C 154 94, 140 94, 134 84" />
+      {/* frente do rosto: testa -> cana longa do nariz */}
+      <path d="M100 42 C 82 60, 74 86, 68 112 C 64 130, 60 144, 58 154" />
+      {/* focinho alongado */}
+      <path d="M58 154 C 56 168, 66 178, 84 178 C 102 178, 118 170, 122 158" />
+      {/* narina */}
+      <path d="M74 160 C 68 159, 66 165, 72 167 C 77 168, 79 162, 75 160" />
+      {/* lábio de volta à bochecha */}
+      <path d="M122 158 C 126 152, 126 144, 121 138" />
+      {/* bochecha / mandíbula direita */}
+      <path d="M150 84 C 156 116, 150 146, 130 162" />
+      {/* olho */}
+      <path d="M92 100 C 100 92, 118 92, 126 102 C 118 112, 100 112, 92 100" />
+      {/* cílio */}
+      <path d="M95 106 C 92 110, 91 114, 94 117" />
+      {/* pescoço sumindo */}
+      <path d="M122 158 C 140 172, 164 178, 190 174" />
     </svg>
   );
 }

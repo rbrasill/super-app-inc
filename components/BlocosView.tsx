@@ -408,7 +408,7 @@ export default function BlocosView() {
         style={{ background: "linear-gradient(120deg, #FFF3EA 0%, #FFFBF6 60%)" }}
       >
         <OxIcon
-          className="pointer-events-none absolute -right-3 top-1/2 -translate-y-1/2 w-[150px] h-[150px] text-primary opacity-[0.10] -rotate-6"
+          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-[150px] h-[150px] text-primary opacity-[0.12]"
         />
         <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-primary">Estratégia de blocos</div>
         <h2 className="font-head text-[22px] font-extrabold text-inkDark mt-[7px] mb-[5px] tracking-[-0.02em]">
