@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PROJECT, STATUSES } from "@/lib/data";
 import { decorate, getBlocks, getBlocksSummary, type BlockRow } from "@/lib/derive";
 import { useStore } from "@/lib/store";
@@ -184,9 +184,15 @@ function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => voi
   );
 }
 
-/** Painel de detalhe do bife — "tela" em overlay, com tarefas agrupadas por etapa. */
-function BlockDetail({ row, onClose }: { row: BlockRow; onClose: () => void }) {
+/** Detalhe do bife — inline (troca o conteúdo da própria tela, sem overlay). */
+function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
   const { tasks, blocks, openBlock, openTask } = useStore();
+
+  // Ao abrir um bife, sobe a área de conteúdo para o topo (mostra o "Voltar").
+  useEffect(() => {
+    document.querySelector(".sc-scroll")?.scrollTo({ top: 0 });
+  }, [row.id]);
+
   const blockMap: Record<string, Bloco> = Object.fromEntries(blocks.map((b) => [b.id, b]));
   const items: DecoratedTask[] = tasks.filter((tk) => tk.blockId === row.id).map((tk) => decorate(tk, blockMap));
 
@@ -209,189 +215,168 @@ function BlockDetail({ row, onClose }: { row: BlockRow; onClose: () => void }) {
   );
 
   return (
-    <div
-      className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-      style={{ background: "rgba(30,20,10,.32)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-panel bg-bg rounded-[20px] w-full max-w-[920px] max-h-[92vh] overflow-hidden flex flex-col"
-        style={{ boxShadow: "0 30px 80px rgba(11,11,11,.28)" }}
-        onClick={(e) => e.stopPropagation()}
+    <div className="view-anim flex flex-col gap-[18px]">
+      {/* Voltar */}
+      <button
+        onClick={onBack}
+        className="self-start inline-flex items-center gap-[7px] text-[12.5px] font-bold text-inkSoft hover:text-primary transition-colors cursor-pointer"
       >
-        {/* Cabeçalho */}
-        <div className="bg-panel border-b border-line px-7 py-5" style={{ borderTop: `4px solid ${row.color}` }}>
-          <div className="flex items-center gap-[10px] flex-wrap">
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-lg text-inkSoft hover:bg-chip hover:text-ink transition-colors flex items-center justify-center text-[16px] font-bold"
-              aria-label="Voltar"
-            >
-              ←
-            </button>
-            <span
-              className="text-[11px] font-extrabold uppercase tracking-[0.4px] px-[10px] py-[4px] rounded-[20px] text-white"
-              style={{ background: row.color }}
-            >
-              🥩 Bife {row.bife}
+        <span className="text-[15px] leading-none">←</span> Voltar para os bifes
+      </button>
+
+      {/* Cabeçalho do bife */}
+      <div className="bg-panel border border-line rounded-2xl px-6 py-5" style={{ borderTop: `4px solid ${row.color}` }}>
+        <div className="flex items-center gap-[10px] flex-wrap">
+          <span
+            className="text-[11px] font-extrabold uppercase tracking-[0.4px] px-[10px] py-[4px] rounded-[20px] text-white"
+            style={{ background: row.color }}
+          >
+            🥩 Bife {row.bife}
+          </span>
+          {row.phaseShort && (
+            <span className="text-[11px] font-extrabold px-[10px] py-[4px] rounded-[20px] bg-chip text-inkMid" title={row.phaseName}>
+              {row.phaseShort}
             </span>
-            {row.phaseShort && (
-              <span className="text-[11px] font-extrabold px-[10px] py-[4px] rounded-[20px] bg-chip text-inkMid" title={row.phaseName}>
-                {row.phaseShort}
-              </span>
-            )}
-            <span className="text-[12px] font-bold text-inkSoft">{row.daysLabel}</span>
-            <span className="text-[12px] font-medium text-inkMute">· {row.weekRange}</span>
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={() => openBlock(row.id)}
-                className="px-3 py-[8px] rounded-[10px] text-[12.5px] font-bold cursor-pointer border border-inputLine bg-panel text-inkSoft hover:bg-chip hover:text-ink transition-colors"
-              >
-                Editar bife
-              </button>
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-lg text-inkFaint hover:bg-chip hover:text-ink transition-colors flex items-center justify-center text-[18px] font-bold"
-                aria-label="Fechar"
-              >
-                ×
-              </button>
-            </div>
+          )}
+          <span className="text-[12px] font-bold text-inkSoft">{row.daysLabel}</span>
+          <span className="text-[12px] font-medium text-inkMute">· {row.weekRange}</span>
+          <button
+            onClick={() => openBlock(row.id)}
+            className="ml-auto px-3 py-[8px] rounded-[10px] text-[12.5px] font-bold cursor-pointer border border-inputLine bg-panel text-inkSoft hover:bg-chip hover:text-ink transition-colors"
+          >
+            Editar bife
+          </button>
+        </div>
+        <h2 className="font-head text-[22px] font-extrabold tracking-[-0.02em] text-inkDark mt-3">{row.name}</h2>
+        <div className="text-[12.5px] text-inkSoft font-medium mt-1 leading-[1.5] max-w-[680px]">{row.theme}</div>
+      </div>
+
+      {/* KPIs do bife */}
+      <div className="grid grid-cols-4 gap-[14px]">
+        <Kpi value={row.count} label="Tarefas no bife" color={row.color} />
+        <Kpi value={kEntregue} label="Entregues" color="#10B981" />
+        <Kpi value={kAndamento} label="Em andamento" color="#F59E0B" />
+        <Kpi value={kTravadas} label="Com trava" color="#FF6000" />
+      </div>
+
+      {/* Progresso + área */}
+      <div className="grid grid-cols-[1fr_1fr] gap-4 items-start">
+        <div className="bg-panel border border-line rounded-2xl p-5">
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-3">Andamento</div>
+          <div className="flex items-center gap-[10px]">
+            <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: row.lampColor }} />
+            <span className="text-[13px] font-extrabold text-ink">{row.txt}</span>
+            <span className="ml-auto text-[11px] font-bold text-inkSoft">{row.meta}</span>
           </div>
-          <h2 className="font-head text-[22px] font-extrabold tracking-[-0.02em] text-inkDark mt-3">{row.name}</h2>
-          <div className="text-[12.5px] text-inkSoft font-medium mt-1 leading-[1.5] max-w-[680px]">{row.theme}</div>
+          <div className="bg-chip rounded-[20px] h-2 overflow-hidden mt-3">
+            <div className="h-full" style={{ width: row.pct, background: row.color }} />
+          </div>
+          <div className="text-[10px] font-extrabold text-inkLabel text-right mt-[5px]">{row.pctLabel} entregue</div>
         </div>
 
-        {/* Corpo rolável */}
-        <div className="sc-scroll flex-1 overflow-auto px-7 py-6 flex flex-col gap-5">
-          {/* KPIs do bife */}
-          <div className="grid grid-cols-4 gap-[14px]">
-            <Kpi value={row.count} label="Tarefas no bife" color={row.color} />
-            <Kpi value={kEntregue} label="Entregues" color="#10B981" />
-            <Kpi value={kAndamento} label="Em andamento" color="#F59E0B" />
-            <Kpi value={kTravadas} label="Com trava" color="#FF6000" />
+        <div className="bg-panel border border-line rounded-2xl p-5">
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-3">Por área</div>
+          {row.areaSegs.length > 0 ? (
+            <>
+              <div className="flex h-5 rounded-[20px] overflow-hidden bg-chip">
+                {row.areaSegs.map((seg) => (
+                  <div
+                    key={seg.name}
+                    className="h-full flex items-center justify-center text-[10px] font-extrabold text-white"
+                    style={{ width: seg.w, background: seg.color }}
+                    title={`${seg.name}: ${seg.count}`}
+                  >
+                    {seg.count}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10.5px] font-bold text-inkSoft">
+                {row.areaSegs.map((seg) => (
+                  <span key={seg.name} className="inline-flex items-center gap-[4px]">
+                    <i className="w-[8px] h-[8px] rounded-[2px] inline-block" style={{ background: seg.color }} />
+                    {seg.name}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-[12px] text-inkMute italic font-medium">Sem tarefas ainda.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Tarefas por etapa */}
+      <div className="flex flex-col gap-4">
+        <div className="text-[12.5px] font-extrabold uppercase tracking-[0.5px] text-inkMid flex items-center gap-[9px]">
+          <span className="w-[3px] h-[15px] rounded-sm bg-primary" /> Tarefas por etapa
+        </div>
+        {groups.length === 0 ? (
+          <div className="bg-panel border border-dashed border-line rounded-2xl p-8 text-center text-[12.5px] text-inkMute font-medium">
+            Este bife ainda não tem tarefas. Adicione tarefas a ele pelo Quadro de execução.
           </div>
-
-          {/* Progresso + área */}
-          <div className="grid grid-cols-[1fr_1fr] gap-4 items-start">
-            <div className="bg-panel border border-line rounded-2xl p-5">
-              <div className="text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-3">Andamento</div>
-              <div className="flex items-center gap-[10px]">
-                <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: row.lampColor }} />
-                <span className="text-[13px] font-extrabold text-ink">{row.txt}</span>
-                <span className="ml-auto text-[11px] font-bold text-inkSoft">{row.meta}</span>
+        ) : (
+          groups.map((g) => (
+            <div key={g.status.id} className="bg-panel border border-line rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-[9px] px-5 py-3 border-b border-line2" style={{ background: g.status.soft }}>
+                <span className="w-[9px] h-[9px] rounded-[3px]" style={{ background: g.status.color }} />
+                <span className="text-[12.5px] font-extrabold" style={{ color: g.status.color }}>
+                  {g.status.name}
+                </span>
+                <span
+                  className="ml-auto text-[11px] font-extrabold bg-panel px-[9px] py-px rounded-[20px]"
+                  style={{ color: g.status.color }}
+                >
+                  {g.rows.length}
+                </span>
               </div>
-              <div className="bg-chip rounded-[20px] h-2 overflow-hidden mt-3">
-                <div className="h-full" style={{ width: row.pct, background: row.color }} />
-              </div>
-              <div className="text-[10px] font-extrabold text-inkLabel text-right mt-[5px]">{row.pctLabel} entregue</div>
-            </div>
-
-            <div className="bg-panel border border-line rounded-2xl p-5">
-              <div className="text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-3">Por área</div>
-              {row.areaSegs.length > 0 ? (
-                <>
-                  <div className="flex h-5 rounded-[20px] overflow-hidden bg-chip">
-                    {row.areaSegs.map((seg) => (
-                      <div
-                        key={seg.name}
-                        className="h-full flex items-center justify-center text-[10px] font-extrabold text-white"
-                        style={{ width: seg.w, background: seg.color }}
-                        title={`${seg.name}: ${seg.count}`}
-                      >
-                        {seg.count}
+              <div>
+                {g.rows.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => openTask(t.id)}
+                    className="flex items-center gap-3 px-5 py-[11px] border-b border-line3 last:border-b-0 cursor-pointer transition-colors hover:bg-chip"
+                  >
+                    <span className="w-[3px] h-[30px] rounded-sm flex-shrink-0" style={{ background: t.color }} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12.5px] font-semibold text-ink truncate">{t.desc}</div>
+                      <div className="flex items-center gap-2 mt-[3px]">
+                        <span className="text-[9.5px] font-extrabold uppercase tracking-[0.3px]" style={{ color: t.color }}>
+                          {t.areaName}
+                        </span>
+                        <span className="w-1 h-1 rounded-full bg-[#DDD5C7]" />
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-inkFaint">
+                          <CalendarIcon style={{ stroke: "#B4ADA1" }} /> {t.dateLabel}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10.5px] font-bold text-inkSoft">
-                    {row.areaSegs.map((seg) => (
-                      <span key={seg.name} className="inline-flex items-center gap-[4px]">
-                        <i className="w-[8px] h-[8px] rounded-[2px] inline-block" style={{ background: seg.color }} />
-                        {seg.name}
+                    </div>
+                    {t.hasDep && (
+                      <span
+                        className="hidden md:flex items-center gap-[5px] text-[10px] font-semibold text-warnText bg-softOrange border border-warnLine rounded-lg px-2 py-1 max-w-[220px]"
+                        title={t.depText}
+                      >
+                        <WarnIcon className="flex-shrink-0" style={{ stroke: "#C2500A" }} />
+                        <span className="truncate">{t.depText}</span>
                       </span>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="text-[12px] text-inkMute italic font-medium">Sem tarefas ainda.</div>
-              )}
-            </div>
-          </div>
-
-          {/* Tarefas por etapa */}
-          <div className="flex flex-col gap-4">
-            <div className="text-[12.5px] font-extrabold uppercase tracking-[0.5px] text-inkMid flex items-center gap-[9px]">
-              <span className="w-[3px] h-[15px] rounded-sm bg-primary" /> Tarefas por etapa
-            </div>
-            {groups.length === 0 ? (
-              <div className="bg-panel border border-dashed border-line rounded-2xl p-8 text-center text-[12.5px] text-inkMute font-medium">
-                Este bife ainda não tem tarefas. Adicione tarefas a ele pelo Quadro de execução.
-              </div>
-            ) : (
-              groups.map((g) => (
-                <div key={g.status.id} className="bg-panel border border-line rounded-2xl overflow-hidden">
-                  <div className="flex items-center gap-[9px] px-5 py-3 border-b border-line2" style={{ background: g.status.soft }}>
-                    <span className="w-[9px] h-[9px] rounded-[3px]" style={{ background: g.status.color }} />
-                    <span className="text-[12.5px] font-extrabold" style={{ color: g.status.color }}>
-                      {g.status.name}
+                    )}
+                    <span
+                      className="text-[9.5px] font-extrabold uppercase tracking-[0.4px] px-2 py-[3px] rounded-[20px] whitespace-nowrap flex-shrink-0"
+                      style={{ background: t.prioBg, color: t.prioText }}
+                    >
+                      {t.prioLabel}
                     </span>
                     <span
-                      className="ml-auto text-[11px] font-extrabold bg-panel px-[9px] py-px rounded-[20px]"
-                      style={{ color: g.status.color }}
+                      className="w-[23px] h-[23px] rounded-lg text-[10px] font-extrabold flex items-center justify-center flex-shrink-0"
+                      style={{ background: t.avBg, color: t.avColor }}
+                      title={t.whoLabel}
                     >
-                      {g.rows.length}
+                      {t.initials || "—"}
                     </span>
                   </div>
-                  <div>
-                    {g.rows.map((t) => (
-                      <div
-                        key={t.id}
-                        onClick={() => openTask(t.id)}
-                        className="flex items-center gap-3 px-5 py-[11px] border-b border-line3 last:border-b-0 cursor-pointer transition-colors hover:bg-chip"
-                      >
-                        <span className="w-[3px] h-[30px] rounded-sm flex-shrink-0" style={{ background: t.color }} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[12.5px] font-semibold text-ink truncate">{t.desc}</div>
-                          <div className="flex items-center gap-2 mt-[3px]">
-                            <span className="text-[9.5px] font-extrabold uppercase tracking-[0.3px]" style={{ color: t.color }}>
-                              {t.areaName}
-                            </span>
-                            <span className="w-1 h-1 rounded-full bg-[#DDD5C7]" />
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-inkFaint">
-                              <CalendarIcon style={{ stroke: "#B4ADA1" }} /> {t.dateLabel}
-                            </span>
-                          </div>
-                        </div>
-                        {t.hasDep && (
-                          <span
-                            className="hidden md:flex items-center gap-[5px] text-[10px] font-semibold text-warnText bg-softOrange border border-warnLine rounded-lg px-2 py-1 max-w-[220px]"
-                            title={t.depText}
-                          >
-                            <WarnIcon className="flex-shrink-0" style={{ stroke: "#C2500A" }} />
-                            <span className="truncate">{t.depText}</span>
-                          </span>
-                        )}
-                        <span
-                          className="text-[9.5px] font-extrabold uppercase tracking-[0.4px] px-2 py-[3px] rounded-[20px] whitespace-nowrap flex-shrink-0"
-                          style={{ background: t.prioBg, color: t.prioText }}
-                        >
-                          {t.prioLabel}
-                        </span>
-                        <span
-                          className="w-[23px] h-[23px] rounded-lg text-[10px] font-extrabold flex items-center justify-center flex-shrink-0"
-                          style={{ background: t.avBg, color: t.avColor }}
-                          title={t.whoLabel}
-                        >
-                          {t.initials || "—"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -405,6 +390,15 @@ export default function BlocosView() {
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const detailRow = rows.find((r) => r.id === detailId);
+
+  // Detalhe inline: troca o conteúdo da própria tela (sem overlay).
+  if (detailRow) {
+    return (
+      <div className="pt-[14px]">
+        <BlockDetail row={detailRow} onBack={() => setDetailId(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className="pt-[14px] flex flex-col gap-[18px]">
@@ -469,9 +463,6 @@ export default function BlocosView() {
           {orphanCount} tarefa(s) sem bloco — atribua um bloco a elas pelo Quadro de execução.
         </div>
       )}
-
-      {/* Detalhe do bife (overlay) */}
-      {detailRow && <BlockDetail row={detailRow} onClose={() => setDetailId(null)} />}
     </div>
   );
 }
