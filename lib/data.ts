@@ -1,4 +1,4 @@
-import type { Area, Bloco, Fase, Priority, PriorityId, Status, Task } from "./types";
+import type { Area, Bloco, Fase, Person, Priority, PriorityId, Status, Task } from "./types";
 
 export const STATUSES: Status[] = [
   { id: "discovery", name: "Discovery", sub: "Pesquisa / ideia", color: "#64748B", soft: "#EEF1F5", light: true },
@@ -127,6 +127,14 @@ export const PEOPLE_RAW: [string, string, string][] = [
   ["A definir", "Representante · Cobrança", "Ponto focal de cobrança no projeto."],
   ["A definir", "Representante · Financeiro", "Ponto focal do financeiro no projeto."],
 ];
+
+/** Time do projeto (semente editável em runtime). */
+export const PEOPLE: Person[] = PEOPLE_RAW.map((r, i) => ({
+  id: `p${i + 1}`,
+  name: r[0],
+  role: r[1],
+  resp: r[2],
+}));
 
 export const AV_PALETTE = [
   "#5B5BF5", "#3B82F6", "#8B5CF6", "#F97316", "#10B981",

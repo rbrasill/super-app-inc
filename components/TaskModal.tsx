@@ -28,9 +28,19 @@ const fieldCls =
   "w-full bg-panel border border-inputLine rounded-[11px] px-[13px] py-[11px] text-[13px] text-ink font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors";
 
 export default function TaskModal() {
-  const { modal, tasks, blocks, addTask, updateTask, deleteTask, closeModal } = useStore();
+  const { modal, tasks, blocks, people, addTask, updateTask, deleteTask, closeModal } = useStore();
   const [form, setForm] = useState<NewTaskInput>(EMPTY);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Responsáveis disponíveis = pessoas cadastradas (menos "A definir").
+  // Preserva um valor legado da tarefa (ex.: "Jurídico") que não esteja no time.
+  const whoOptions = (() => {
+    const names = Array.from(
+      new Set(people.map((p) => p.name).filter((n) => n.trim() && n !== "A definir"))
+    );
+    if (form.who && !names.includes(form.who)) names.push(form.who);
+    return names.sort((a, b) => a.localeCompare(b, "pt-BR"));
+  })();
 
   const editing = modal?.mode === "edit" ? tasks.find((t) => t.id === modal.id) : undefined;
   const isEdit = modal?.mode === "edit";
@@ -129,12 +139,14 @@ export default function TaskModal() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Responsável</label>
-              <input
-                className={fieldCls}
-                placeholder="Nome (opcional)"
-                value={form.who}
-                onChange={(e) => set("who", e.target.value)}
-              />
+              <select className={fieldCls} value={form.who} onChange={(e) => set("who", e.target.value)}>
+                <option value="">Sem responsável</option>
+                {whoOptions.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={labelCls}>Prioridade</label>

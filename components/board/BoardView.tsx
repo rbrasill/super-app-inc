@@ -1,17 +1,40 @@
 "use client";
 
-import { AREAS } from "@/lib/data";
+import { AREAS, STATUSES } from "@/lib/data";
 import { useStore } from "@/lib/store";
-import type { AreaId, Sub } from "@/lib/types";
+import type { AreaId, StatusId, Sub } from "@/lib/types";
 import GroupedBoard from "./GroupedBoard";
 import KanbanBoard from "./KanbanBoard";
 
 const selectCls =
-  "bg-transparent border-none outline-none text-[12.5px] font-bold text-inkMid cursor-pointer appearance-none pr-1";
+  "bg-transparent border-none outline-none text-[12.5px] font-bold text-inkMid cursor-pointer appearance-none pr-1 max-w-[160px]";
 
 export function BoardControls({ sub, setSub }: { sub: Sub; setSub: (s: Sub) => void }) {
-  const { areaFilter, setAreaFilter, blockFilter, setBlockFilter, blocks, filteredTasks, hasActiveFilters, clearFilters } =
-    useStore();
+  const {
+    areaFilter,
+    setAreaFilter,
+    blockFilter,
+    setBlockFilter,
+    whoFilter,
+    setWhoFilter,
+    statusFilter,
+    setStatusFilter,
+    blocks,
+    people,
+    tasks,
+    filteredTasks,
+    hasActiveFilters,
+    clearFilters,
+  } = useStore();
+
+  // Responsáveis para o filtro: pessoas cadastradas (menos "A definir") + quem
+  // já está atribuído em alguma tarefa (ex.: "Jurídico"), sem repetir.
+  const whoOptions = Array.from(
+    new Set([
+      ...people.map((p) => p.name).filter((n) => n.trim() && n !== "A definir"),
+      ...tasks.map((t) => t.who).filter((w) => w.trim()),
+    ])
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   const segBtn = (active: boolean) =>
     `border-none px-4 py-[7px] rounded-[9px] text-[12.5px] font-extrabold cursor-pointer transition-colors ${
@@ -55,6 +78,36 @@ export function BoardControls({ sub, setSub }: { sub: Sub; setSub: (s: Sub) => v
           {blocks.map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Filtro de Responsável */}
+      <div className="flex items-center gap-2 bg-panel border border-line rounded-[12px] px-3 py-[7px]">
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.6px] text-inkMute">Resp.</span>
+        <select className={selectCls} value={whoFilter} onChange={(e) => setWhoFilter(e.target.value)}>
+          <option value="all">Todos</option>
+          {whoOptions.map((w) => (
+            <option key={w} value={w}>
+              {w}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Filtro de Status */}
+      <div className="flex items-center gap-2 bg-panel border border-line rounded-[12px] px-3 py-[7px]">
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.6px] text-inkMute">Status</span>
+        <select
+          className={selectCls}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as StatusId | "all")}
+        >
+          <option value="all">Todos</option>
+          {STATUSES.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
             </option>
           ))}
         </select>

@@ -6,7 +6,8 @@ import type { View } from "@/lib/types";
 import { ExportIcon, PlusIcon, SearchIcon } from "./icons";
 
 export default function Topbar({ title, sub, view }: { title: string; sub: string; view: View }) {
-  const { search, setSearch, tasks, filteredTasks, blocks, hasActiveFilters, openNew, openNewBlock } = useStore();
+  const { search, setSearch, tasks, filteredTasks, blocks, hasActiveFilters, openNew, openNewBlock, openNewPerson } =
+    useStore();
 
   const handleExport = () => {
     exportTasksCsv(hasActiveFilters ? filteredTasks : tasks, blocks);
@@ -14,6 +15,7 @@ export default function Topbar({ title, sub, view }: { title: string; sub: strin
 
   const isBoard = view === "board";
   const isBlocks = view === "blocks";
+  const isPeople = view === "people";
 
   return (
     <div className="px-[34px] pt-6 pb-5 flex items-center gap-[18px] flex-wrap border-b border-line bg-bg">
@@ -74,6 +76,16 @@ export default function Topbar({ title, sub, view }: { title: string; sub: strin
         >
           <PlusIcon />
           Adicionar bloco
+        </button>
+      )}
+
+      {isPeople && (
+        <button
+          onClick={openNewPerson}
+          className="px-[17px] py-[11px] rounded-[12px] text-[13px] font-extrabold cursor-pointer border-none bg-primary text-white inline-flex items-center gap-[7px] shadow-btn transition-[filter] hover:brightness-[1.06]"
+        >
+          <PlusIcon />
+          Adicionar pessoa
         </button>
       )}
     </div>

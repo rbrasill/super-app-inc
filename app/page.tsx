@@ -6,6 +6,7 @@ import BlocosView from "@/components/BlocosView";
 import BoardView, { BoardControls } from "@/components/board/BoardView";
 import Dashboard from "@/components/Dashboard";
 import PeopleGrid from "@/components/PeopleGrid";
+import PersonModal from "@/components/PersonModal";
 import Sidebar from "@/components/Sidebar";
 import SponsorView from "@/components/SponsorView";
 import TaskModal from "@/components/TaskModal";
@@ -48,6 +49,7 @@ export default function Home() {
 
         <TaskModal />
         <BlockModal />
+        <PersonModal />
       </div>
     </StoreProvider>
   );

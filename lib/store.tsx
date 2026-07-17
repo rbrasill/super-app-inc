@@ -1,11 +1,13 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState } from "react";
-import { BLOCKS, TASKS } from "./data";
-import type { AreaId, Bloco, StatusId, Task } from "./types";
+import { BLOCKS, PEOPLE, TASKS } from "./data";
+import type { AreaId, Bloco, Person, StatusId, Task } from "./types";
 
 export type AreaFilter = AreaId | "all";
 export type BlockFilter = string | "all";
+export type WhoFilter = string | "all";
+export type StatusFilter = StatusId | "all";
 
 export interface NewTaskInput {
   desc: string;
@@ -27,6 +29,12 @@ export interface BlockInput {
   phaseId: string;
 }
 
+export interface PersonInput {
+  name: string;
+  role: string;
+  resp: string;
+}
+
 export type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 /** Gera um id único com o prefixo dado, sem colidir com os existentes. */
@@ -40,16 +48,22 @@ function makeId(prefix: string, existing: { id: string }[]): string {
 interface StoreValue {
   /** Todas as tarefas (sem filtro) — usado por Dashboard / Patrocinador / Blocos. */
   tasks: Task[];
-  /** Tarefas após busca + filtro de área/bloco — usado no Quadro. */
+  /** Tarefas após busca + filtros — usado no Quadro. */
   filteredTasks: Task[];
   /** Blocos ("bifes") do projeto. */
   blocks: Bloco[];
+  /** Pessoas & papéis (time). */
+  people: Person[];
   search: string;
   setSearch: (v: string) => void;
   areaFilter: AreaFilter;
   setAreaFilter: (v: AreaFilter) => void;
   blockFilter: BlockFilter;
   setBlockFilter: (v: BlockFilter) => void;
+  whoFilter: WhoFilter;
+  setWhoFilter: (v: WhoFilter) => void;
+  statusFilter: StatusFilter;
+  setStatusFilter: (v: StatusFilter) => void;
   hasActiveFilters: boolean;
   clearFilters: () => void;
   // Tarefas
@@ -62,6 +76,10 @@ interface StoreValue {
   updateBlock: (id: string, patch: BlockInput) => void;
   deleteBlock: (id: string) => void;
   moveBlock: (id: string, dir: -1 | 1) => void;
+  // Pessoas
+  addPerson: (input: PersonInput) => void;
+  updatePerson: (id: string, patch: PersonInput) => void;
+  deletePerson: (id: string) => void;
   /** Modal de criar/editar tarefa. */
   modal: ModalState;
   openNew: () => void;
@@ -72,6 +90,11 @@ interface StoreValue {
   openNewBlock: () => void;
   openBlock: (id: string) => void;
   closeBlockModal: () => void;
+  /** Modal de criar/editar pessoa. */
+  personModal: ModalState;
+  openNewPerson: () => void;
+  openPerson: (id: string) => void;
+  closePersonModal: () => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -79,24 +102,30 @@ const StoreContext = createContext<StoreValue | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(() => [...TASKS]);
   const [blocks, setBlocks] = useState<Bloco[]>(() => BLOCKS.map((b) => ({ ...b })));
+  const [people, setPeople] = useState<Person[]>(() => PEOPLE.map((p) => ({ ...p })));
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState<AreaFilter>("all");
   const [blockFilter, setBlockFilter] = useState<BlockFilter>("all");
+  const [whoFilter, setWhoFilter] = useState<WhoFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [modal, setModal] = useState<ModalState>(null);
   const [blockModal, setBlockModal] = useState<ModalState>(null);
+  const [personModal, setPersonModal] = useState<ModalState>(null);
 
   const filteredTasks = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tasks.filter((tk) => {
       if (areaFilter !== "all" && tk.area !== areaFilter) return false;
       if (blockFilter !== "all" && tk.blockId !== blockFilter) return false;
+      if (whoFilter !== "all" && tk.who !== whoFilter) return false;
+      if (statusFilter !== "all" && tk.status !== statusFilter) return false;
       if (q) {
         const hay = `${tk.desc} ${tk.who} ${tk.dep}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [tasks, search, areaFilter, blockFilter]);
+  }, [tasks, search, areaFilter, blockFilter, whoFilter, statusFilter]);
 
   // ---- Tarefas ----
   const addTask = (input: NewTaskInput) => {
@@ -144,6 +173,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // ---- Pessoas ----
+  const addPerson = (input: PersonInput) => {
+    setPeople((prev) => [...prev, { id: makeId("p", prev), ...input }]);
+  };
+
+  const updatePerson = (id: string, patch: PersonInput) => {
+    // Renomear a pessoa reflete nas tarefas cujo responsável era o nome antigo.
+    setPeople((prev) => {
+      const old = prev.find((p) => p.id === id);
+      if (old && old.name !== patch.name) {
+        setTasks((ts) => ts.map((tk) => (tk.who === old.name ? { ...tk, who: patch.name } : tk)));
+        setWhoFilter((f) => (f === old.name ? patch.name : f));
+      }
+      return prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
+    });
+  };
+
+  const deletePerson = (id: string) => {
+    setPeople((prev) => prev.filter((p) => p.id !== id));
+    setPersonModal(null);
+  };
+
   const openNew = () => setModal({ mode: "new" });
   const openTask = (id: string) => setModal({ mode: "edit", id });
   const closeModal = () => setModal(null);
@@ -152,23 +203,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const openBlock = (id: string) => setBlockModal({ mode: "edit", id });
   const closeBlockModal = () => setBlockModal(null);
 
-  const hasActiveFilters = search.trim() !== "" || areaFilter !== "all" || blockFilter !== "all";
+  const openNewPerson = () => setPersonModal({ mode: "new" });
+  const openPerson = (id: string) => setPersonModal({ mode: "edit", id });
+  const closePersonModal = () => setPersonModal(null);
+
+  const hasActiveFilters =
+    search.trim() !== "" ||
+    areaFilter !== "all" ||
+    blockFilter !== "all" ||
+    whoFilter !== "all" ||
+    statusFilter !== "all";
   const clearFilters = () => {
     setSearch("");
     setAreaFilter("all");
     setBlockFilter("all");
+    setWhoFilter("all");
+    setStatusFilter("all");
   };
 
   const value: StoreValue = {
     tasks,
     filteredTasks,
     blocks,
+    people,
     search,
     setSearch,
     areaFilter,
     setAreaFilter,
     blockFilter,
     setBlockFilter,
+    whoFilter,
+    setWhoFilter,
+    statusFilter,
+    setStatusFilter,
     hasActiveFilters,
     clearFilters,
     addTask,
@@ -179,6 +246,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     updateBlock,
     deleteBlock,
     moveBlock,
+    addPerson,
+    updatePerson,
+    deletePerson,
     modal,
     openNew,
     openTask,
@@ -187,6 +257,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     openNewBlock,
     openBlock,
     closeBlockModal,
+    personModal,
+    openNewPerson,
+    openPerson,
+    closePersonModal,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

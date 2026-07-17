@@ -1,6 +1,6 @@
-import { AREAS, AV_PALETTE, PEOPLE_RAW, PHASES, PROJECT, PRIO, STATUSES } from "./data";
+import { AREAS, PHASES, PROJECT, PRIO, STATUSES } from "./data";
 import { THEME, whoAvatar } from "./theme";
-import type { Area, Bloco, DecoratedTask, Fase, Status, Task } from "./types";
+import type { Area, Bloco, DecoratedTask, Fase, Person, Status, Task } from "./types";
 
 const areaMap: Record<string, Area> = Object.fromEntries(AREAS.map((a) => [a.id, a]));
 const statusMap: Record<string, Status> = Object.fromEntries(STATUSES.map((s) => [s.id, s]));
@@ -327,6 +327,7 @@ export function getDelivered(tasks: Task[]): DeliveredRow[] {
 }
 
 export interface PersonRow {
+  id: string;
   name: string;
   role: string;
   resp: string;
@@ -335,16 +336,18 @@ export interface PersonRow {
   avColor: string;
 }
 
-export function getPeople(): PersonRow[] {
-  return PEOPLE_RAW.map((r, i) => {
-    const undef = r[0] === "A definir";
+export function getPeople(people: Person[]): PersonRow[] {
+  return people.map((p) => {
+    const undef = !p.name.trim() || p.name === "A definir";
+    const av = whoAvatar(p.name);
     return {
-      name: r[0],
-      role: r[1],
-      resp: r[2],
-      initials: undef ? "?" : r[0][0].toUpperCase(),
-      avBg: undef ? THEME.chip : AV_PALETTE[i % AV_PALETTE.length] + "22",
-      avColor: undef ? THEME.inkFaint : AV_PALETTE[i % AV_PALETTE.length],
+      id: p.id,
+      name: p.name,
+      role: p.role,
+      resp: p.resp,
+      initials: undef ? "?" : p.name.trim()[0].toUpperCase(),
+      avBg: undef ? THEME.chip : av.avBg,
+      avColor: undef ? THEME.inkMute : av.avColor,
     };
   });
 }
