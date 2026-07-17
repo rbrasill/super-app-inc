@@ -100,3 +100,24 @@ export function WarnIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** Cabeça de boi em traço fino — usado como marca-d'água sutil ("o boi é o app"). */
+export function OxIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 64 64" width="64" height="64" strokeWidth="2.4" {...base} {...props}>
+      {/* chifres */}
+      <path d="M21 21c-7-3-12-11-8-15 2 5 6 8 12 10" />
+      <path d="M43 21c7-3 12-11 8-15-2 5-6 8-12 10" />
+      {/* orelhas */}
+      <path d="M20 24c-6-1-9 2-8 7" />
+      <path d="M44 24c6-1 9 2 8 7" />
+      {/* cabeça */}
+      <path d="M21 21c-4 4-5 12 0 19 3 4 6 6 11 6s8-2 11-6c5-7 4-15 0-19" />
+      {/* focinho + narinas */}
+      <path d="M25 42c0 5 14 5 14 0" />
+      <path d="M29 45h.02M35 45h.02" />
+      {/* olhos */}
+      <path d="M26 31h.02M38 31h.02" />
+    </svg>
+  );
+}

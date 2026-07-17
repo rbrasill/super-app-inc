@@ -5,7 +5,7 @@ import { PROJECT, STATUSES } from "@/lib/data";
 import { decorate, getBlocks, getBlocksSummary, type BlockRow } from "@/lib/derive";
 import { useStore } from "@/lib/store";
 import type { Bloco, DecoratedTask } from "@/lib/types";
-import { CalendarIcon, PlusIcon, WarnIcon } from "./icons";
+import { CalendarIcon, OxIcon, PlusIcon, WarnIcon } from "./icons";
 
 function InfoTile({ value, label, sub, subColor }: { value: string; label: string; sub?: string; subColor?: string }) {
   return (
@@ -407,7 +407,9 @@ export default function BlocosView() {
         className="rounded-[18px] border border-warnLine px-7 py-6 relative overflow-hidden"
         style={{ background: "linear-gradient(120deg, #FFF3EA 0%, #FFFBF6 60%)" }}
       >
-        <div className="pointer-events-none absolute -right-10 -top-10 w-[180px] h-[180px] bg-primary opacity-[0.08] rounded-full" />
+        <OxIcon
+          className="pointer-events-none absolute -right-3 top-1/2 -translate-y-1/2 w-[150px] h-[150px] text-primary opacity-[0.10] -rotate-6"
+        />
         <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-primary">Estratégia de blocos</div>
         <h2 className="font-head text-[22px] font-extrabold text-inkDark mt-[7px] mb-[5px] tracking-[-0.02em]">
           O boi é o app · cada bife é um bloco 🥩
