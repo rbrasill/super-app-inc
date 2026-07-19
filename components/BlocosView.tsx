@@ -345,16 +345,16 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
                         </span>
                         <span className="w-1 h-1 rounded-full bg-[#DDD5C7]" />
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-inkFaint">
-                          <CalendarIcon style={{ stroke: "#B4ADA1" }} /> {t.dateLabel}
+                          <CalendarIcon style={{ stroke: "#A1A5B3" }} /> {t.dateLabel}
                         </span>
                       </div>
                     </div>
                     {t.hasDep && (
                       <span
-                        className="hidden md:flex items-center gap-[5px] text-[10px] font-semibold text-warnText bg-softOrange border border-warnLine rounded-lg px-2 py-1 max-w-[220px]"
+                        className="hidden md:flex items-center gap-[5px] text-[10px] font-semibold text-warnText bg-warnBg border border-warnLine rounded-lg px-2 py-1 max-w-[220px]"
                         title={t.depText}
                       >
-                        <WarnIcon className="flex-shrink-0" style={{ stroke: "#C2500A" }} />
+                        <WarnIcon className="flex-shrink-0" style={{ stroke: "#FD8E1F" }} />
                         <span className="truncate">{t.depText}</span>
                       </span>
                     )}
@@ -404,11 +404,11 @@ export default function BlocosView() {
     <div className="pt-[14px] flex flex-col gap-[18px]">
       {/* Hero claro */}
       <div
-        className="rounded-[18px] border border-warnLine px-7 py-6 relative overflow-hidden"
-        style={{ background: "linear-gradient(120deg, #FFF3EA 0%, #FFFBF6 60%)" }}
+        className="rounded-[18px] border border-softOrangeLine px-7 py-6 relative overflow-hidden"
+        style={{ background: "linear-gradient(120deg, #FFEEE8 0%, #FFFFFF 60%)" }}
       >
         <OxIcon
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-[150px] h-[150px] text-primary opacity-[0.12]"
+          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-[150px] h-[150px] text-primary opacity-[0.14]"
         />
         <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-primary">Estratégia de blocos</div>
         <h2 className="font-head text-[22px] font-extrabold text-inkDark mt-[7px] mb-[5px] tracking-[-0.02em]">

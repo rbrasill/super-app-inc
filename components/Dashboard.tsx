@@ -36,10 +36,10 @@ export default function Dashboard() {
     <div className="pt-[14px]">
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-[14px] mb-4">
-        <KpiCard bar="#0FA47A" value={String(kpis.total)} label="Tarefas no projeto" />
-        <KpiCard bar="#F59E0B" value={String(kpis.andamento)} label="Em andamento" />
+        <KpiCard bar="#564FFD" value={String(kpis.total)} label="Tarefas no projeto" />
+        <KpiCard bar="#FD8E1F" value={String(kpis.andamento)} label="Em andamento" />
         <KpiCard
-          bar="#10B981"
+          bar="#23BD33"
           value={
             <>
               {kpis.entregue}
@@ -48,14 +48,14 @@ export default function Dashboard() {
           }
           label="Entregues"
         />
-        <KpiCard bar="#FF6000" value={String(kpis.travadas)} label="Com trava / dependência" tint />
+        <KpiCard bar="#FD8E1F" value={String(kpis.travadas)} label="Com trava / dependência" tint />
       </div>
 
       {/* Distribuição + Blocos */}
       <div className="grid grid-cols-[1.35fr_1fr] gap-4 mb-4">
         {/* Distribuição por área e status */}
         <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
-          <SectionTitle accent="#0FA47A" className="mb-4">
+          <SectionTitle accent="#FF6636" className="mb-4">
             Distribuição por área e status
           </SectionTitle>
           <div>
@@ -89,7 +89,7 @@ export default function Dashboard() {
 
         {/* Andamento por bloco */}
         <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
-          <SectionTitle accent="#0FA47A" className="mb-2">
+          <SectionTitle accent="#FF6636" className="mb-2">
             Andamento por bloco
           </SectionTitle>
           <div>
@@ -118,14 +118,14 @@ export default function Dashboard() {
 
       {/* Travas & dependências */}
       <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
-        <SectionTitle accent="#FF6000" className="mb-[14px]">
+        <SectionTitle accent="#FD8E1F" className="mb-[14px]">
           Travas & dependências abertas
         </SectionTitle>
         <div className="grid grid-cols-2 gap-[11px]">
           {risks.map((rk, i) => (
             <div key={i} className="flex gap-3 px-[14px] py-3 border border-warnLine bg-warnBg rounded-xl">
               <div className="w-7 h-7 flex-shrink-0 rounded-[9px] bg-panel border border-warnLine flex items-center justify-center">
-                <WarnIcon width={15} height={15} style={{ stroke: "#C2500A" }} />
+                <WarnIcon width={15} height={15} style={{ stroke: "#FD8E1F" }} />
               </div>
               <div className="min-w-0">
                 <div className="font-extrabold text-[12.5px] mb-[3px]">{rk.desc}</div>

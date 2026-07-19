@@ -31,7 +31,7 @@ export default function Topbar({ title, sub, view }: { title: string; sub: strin
         <>
           {/* Busca */}
           <div className="flex items-center gap-2 bg-panel border border-line rounded-[12px] px-[13px] py-[9px] w-[230px] focus-within:border-primary transition-colors">
-            <SearchIcon style={{ stroke: "#B4ADA1" }} />
+            <SearchIcon style={{ stroke: "#A1A5B3" }} />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}

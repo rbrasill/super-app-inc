@@ -1,13 +1,13 @@
 import type { Area, Bloco, Fase, Person, Priority, PriorityId, Status, Task } from "./types";
 
 export const STATUSES: Status[] = [
-  { id: "discovery", name: "Discovery", sub: "Pesquisa / ideia", color: "#64748B", soft: "#EEF1F5", light: true },
-  { id: "backlog", name: "Backlog", sub: "No radar, sem prazo", color: "#7C8598", soft: "#F0F2F5", light: true },
-  { id: "planejado", name: "Planejado", sub: "Na esteira", color: "#6366F1", soft: "#ECEDFE" },
-  { id: "execucao", name: "Em execução", sub: "Sendo feito", color: "#F97316", soft: "#FEF0E4" },
-  { id: "validacao", name: "Em validação", sub: "Em conferência", color: "#A855F7", soft: "#F5ECFE" },
-  { id: "pronto", name: "Pronto p/ entrega", sub: "Aguardando", color: "#CA9A00", soft: "#FBF3D6" },
-  { id: "entregue", name: "Entregue", sub: "No ar / oficializado", color: "#10B981", soft: "#E3F7EF" },
+  { id: "discovery", name: "Discovery", sub: "Pesquisa / ideia", color: "#8C94A3", soft: "#F0F2F6", light: true },
+  { id: "backlog", name: "Backlog", sub: "No radar, sem prazo", color: "#6E7485", soft: "#EEF0F5", light: true },
+  { id: "planejado", name: "Planejado", sub: "Na esteira", color: "#564FFD", soft: "#EBEBFF" },
+  { id: "execucao", name: "Em execução", sub: "Sendo feito", color: "#FF6636", soft: "#FFEEE8" },
+  { id: "validacao", name: "Em validação", sub: "Em conferência", color: "#7872FD", soft: "#EBEBFF" },
+  { id: "pronto", name: "Pronto p/ entrega", sub: "Aguardando", color: "#FD8E1F", soft: "#FFF2E6" },
+  { id: "entregue", name: "Entregue", sub: "No ar / oficializado", color: "#23BD33", soft: "#E1F7E3" },
 ];
 
 export const AREAS: Area[] = [
@@ -82,9 +82,9 @@ export const BLOCKS: Bloco[] = [
 ];
 
 export const PRIO: Record<PriorityId, Priority> = {
-  alta: { label: "Alta", bg: "#FDE4DE", text: "#D14328" },
-  media: { label: "Média", bg: "#FEF0D8", text: "#B4700A" },
-  baixa: { label: "Baixa", bg: "#EBEEF2", text: "#5B6472" },
+  alta: { label: "Alta", bg: "#FFF0F0", text: "#B63636" },
+  media: { label: "Média", bg: "#FFF2E6", text: "#985613" },
+  baixa: { label: "Baixa", bg: "#EEF0F5", text: "#6E7485" },
 };
 
 export const TASKS: Task[] = [

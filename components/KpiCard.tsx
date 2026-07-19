@@ -16,7 +16,7 @@ export default function KpiCard({
   return (
     <div
       className={`rounded-2xl px-5 pt-[22px] pb-[18px] relative overflow-hidden border transition-shadow hover:shadow-card ${
-        tint ? "bg-softOrange border-warnLine" : "bg-panel border-line"
+        tint ? "bg-warnBg border-warnLine" : "bg-panel border-line"
       }`}
     >
       {/* Barra no topo */}

@@ -54,7 +54,7 @@ export default function BlockModal() {
   return (
     <div
       className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(30,20,10,.32)" }}
+      style={{ background: "rgba(29,32,38,.38)" }}
       onClick={closeBlockModal}
     >
       <div
@@ -156,7 +156,7 @@ export default function BlockModal() {
                   </span>
                   <button
                     onClick={() => deleteBlock(editing.id)}
-                    className="px-3 py-[7px] rounded-[11px] text-[12.5px] font-bold cursor-pointer border border-[#EF4444] bg-[#EF4444] text-white hover:brightness-105 transition-[filter]"
+                    className="px-3 py-[7px] rounded-[11px] text-[12.5px] font-bold cursor-pointer border border-[#E34444] bg-[#E34444] text-white hover:brightness-105 transition-[filter]"
                   >
                     Sim, excluir
                   </button>
@@ -170,7 +170,7 @@ export default function BlockModal() {
               ) : (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="px-3 py-[10px] rounded-[11px] text-[13px] font-bold cursor-pointer border border-inputLine bg-panel text-[#D14328] hover:bg-[#FDE4DE] transition-colors"
+                  className="px-3 py-[10px] rounded-[11px] text-[13px] font-bold cursor-pointer border border-inputLine bg-panel text-[#B63636] hover:bg-[#FFF0F0] transition-colors"
                 >
                   Excluir
                 </button>

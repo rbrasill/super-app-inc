@@ -24,10 +24,10 @@ export default function SponsorView() {
     <div className="pt-[14px]">
       {/* Hero */}
       <div
-        className="rounded-[18px] border border-warnLine px-[30px] py-[26px] mb-4 relative overflow-hidden"
-        style={{ background: "linear-gradient(120deg, #FFF3EA 0%, #FFFBF6 65%)" }}
+        className="rounded-[18px] border border-softOrangeLine px-[30px] py-[26px] mb-4 relative overflow-hidden"
+        style={{ background: "linear-gradient(120deg, #FFEEE8 0%, #FFFFFF 65%)" }}
       >
-        <div className="absolute -right-10 -top-10 w-[180px] h-[180px] bg-primary opacity-[0.08] rounded-full" />
+        <div className="absolute -right-10 -top-10 w-[180px] h-[180px] bg-primary opacity-[0.10] rounded-full" />
         <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-primary">
           Resumo executivo · jul/26
         </div>
@@ -43,7 +43,7 @@ export default function SponsorView() {
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-[14px] mb-4">
         <KpiCard
-          bar="#0FA47A"
+          bar="#564FFD"
           value={
             <>
               {kpis.pct}
@@ -52,15 +52,15 @@ export default function SponsorView() {
           }
           label="Concluído do previsto"
         />
-        <KpiCard bar="#10B981" value={String(kpis.entregue)} label="Entregas no ar" />
-        <KpiCard bar="#FF6000" value={String(kpis.decisions)} label="Aguardando sua decisão" tint />
+        <KpiCard bar="#23BD33" value={String(kpis.entregue)} label="Entregas no ar" />
+        <KpiCard bar="#FD8E1F" value={String(kpis.decisions)} label="Aguardando sua decisão" tint />
       </div>
 
       {/* Semáforo + Decisões/Entregas */}
       <div className="grid grid-cols-2 gap-4">
         {/* Semáforo por bloco */}
         <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
-          <SectionTitle accent="#0FA47A">Semáforo por bloco</SectionTitle>
+          <SectionTitle accent="#FF6636">Semáforo por bloco</SectionTitle>
           {blockRows.map((b) => (
             <div key={b.id} className="flex items-center gap-[13px] py-3 border-b border-line2">
               <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: b.lampColor }} />
@@ -82,7 +82,7 @@ export default function SponsorView() {
         <div className="flex flex-col gap-4">
           {/* Decisões que dependem de você */}
           <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
-            <SectionTitle accent="#FF6000">Decisões que dependem de você</SectionTitle>
+            <SectionTitle accent="#FD8E1F">Decisões que dependem de você</SectionTitle>
             {decisions.map((d) => (
               <div key={d.n} className="flex gap-3 items-start py-[11px] border-b border-line2">
                 <div className="w-6 h-6 rounded-lg bg-primary text-white font-extrabold text-[12px] flex items-center justify-center flex-shrink-0">
@@ -98,10 +98,10 @@ export default function SponsorView() {
 
           {/* Entregue recentemente */}
           <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
-            <SectionTitle accent="#10B981">Entregue recentemente</SectionTitle>
+            <SectionTitle accent="#23BD33">Entregue recentemente</SectionTitle>
             {delivered.map((d, i) => (
               <div key={i} className="flex gap-3 items-start py-[11px] border-b border-line2">
-                <div className="w-6 h-6 rounded-lg bg-[#10B981] text-white font-extrabold text-[13px] flex items-center justify-center flex-shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-[#23BD33] text-white font-extrabold text-[13px] flex items-center justify-center flex-shrink-0">
                   ✓
                 </div>
                 <div className="min-w-0">

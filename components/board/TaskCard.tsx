@@ -25,8 +25,8 @@ export default function TaskCard({ task }: { task: DecoratedTask }) {
 
       {/* Dependência / trava */}
       {task.hasDep && (
-        <div className="mb-[9px] text-[10.5px] font-semibold text-warnText bg-softOrange border border-warnLine rounded-lg px-2 py-[5px] flex items-center gap-[6px]">
-          <WarnIcon className="flex-shrink-0" style={{ stroke: "#C2500A" }} />
+        <div className="mb-[9px] text-[10.5px] font-semibold text-warnText bg-warnBg border border-warnLine rounded-lg px-2 py-[5px] flex items-center gap-[6px]">
+          <WarnIcon className="flex-shrink-0" style={{ stroke: "#FD8E1F" }} />
           <span className="overflow-hidden text-ellipsis whitespace-nowrap">{task.depText}</span>
         </div>
       )}
@@ -49,7 +49,7 @@ export default function TaskCard({ task }: { task: DecoratedTask }) {
 
       {/* Prazo */}
       <div className="flex items-center gap-[5px] mt-[9px] text-[10.5px] text-inkFaint font-medium">
-        <CalendarIcon style={{ stroke: "#B4ADA1" }} />
+        <CalendarIcon style={{ stroke: "#A1A5B3" }} />
         {task.dateLabel}
       </div>
     </div>
