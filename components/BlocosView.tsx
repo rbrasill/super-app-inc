@@ -7,33 +7,49 @@ import { useStore } from "@/lib/store";
 import type { Bloco, DecoratedTask } from "@/lib/types";
 import { CalendarIcon, OxIcon, PlusIcon, WarnIcon } from "./icons";
 
-function InfoTile({ value, label, sub, subColor }: { value: string; label: string; sub?: string; subColor?: string }) {
-  return (
-    <div className="bg-panel border border-line rounded-2xl px-[18px] py-4">
-      <div className="font-head text-[26px] font-extrabold tracking-[-0.04em] leading-none text-inkDark">{value}</div>
-      <div className="text-[10.5px] font-bold uppercase tracking-[0.4px] text-inkLabel mt-2">{label}</div>
-      {sub && (
-        <div className="text-[11px] font-bold mt-1" style={{ color: subColor }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Barra de encaixe: os blocos preenchendo o período de N dias, com checkpoints semanais. */
-function Timeline({ rows, onPick }: { rows: BlockRow[]; onPick: (id: string) => void }) {
+/**
+ * Cartão único do período: tagline da estratégia + resumo objetivo
+ * (bifes, dias alocados, encaixe) + a linha do tempo clicável.
+ */
+function PeriodCard({
+  rows,
+  summary,
+  onPick,
+}: {
+  rows: BlockRow[];
+  summary: ReturnType<typeof getBlocksSummary>;
+  onPick: (id: string) => void;
+}) {
   const ticks = Array.from({ length: Math.floor(PROJECT.totalDays / 7) }, (_, i) => (i + 1) * 7).filter(
     (d) => d < PROJECT.totalDays
   );
 
   return (
-    <div className="bg-panel border border-line rounded-2xl p-5">
-      <div className="flex items-center gap-[9px] text-[12.5px] font-extrabold uppercase tracking-[0.5px] text-inkMid mb-4">
-        <span className="w-[3px] h-[15px] rounded-sm bg-primary" />
-        Encaixe nos {PROJECT.totalDays} dias
+    <div className="bg-panel border border-line rounded-2xl p-5 relative overflow-hidden">
+      <OxIcon className="pointer-events-none absolute -right-6 -top-10 w-[150px] h-[150px] text-primary opacity-[0.10]" />
+
+      <div className="text-[10px] font-extrabold tracking-[1px] uppercase text-primary mb-[6px]">
+        O boi é o app · cada bife é um bloco 🥩
       </div>
 
+      <div className="flex items-center gap-3 flex-wrap mb-4">
+        <span className="font-head text-[17px] font-extrabold tracking-[-0.02em] text-inkDark">
+          Encaixe nos {summary.totalDays} dias
+        </span>
+        <div className="flex-1" />
+        <span className="text-[12px] font-bold text-inkSoft">
+          {rows.length} {rows.length === 1 ? "bife" : "bifes"} · {summary.allocatedDays}d de {summary.totalDays}d
+          alocados
+        </span>
+        <span
+          className="text-[11px] font-extrabold px-[10px] py-[4px] rounded-[20px]"
+          style={{ background: summary.fitColor + "18", color: summary.fitColor }}
+        >
+          {summary.fitLabel}
+        </span>
+      </div>
+
+      {/* Linha do tempo (clique num bife abre o detalhe) */}
       <div className="relative h-[46px] bg-chip rounded-xl overflow-hidden">
         {ticks.map((d) => (
           <div
@@ -59,13 +75,13 @@ function Timeline({ rows, onPick }: { rows: BlockRow[]; onPick: (id: string) => 
 
       <div className="flex justify-between mt-2 text-[10px] font-bold text-inkMute">
         <span>Semana 1</span>
-        <span>Semana {Math.round(PROJECT.totalDays / 7)}</span>
+        <span>Semana {summary.weeks}</span>
       </div>
     </div>
   );
 }
 
-/** Card resumido do bife — sem a lista de tarefas; clique abre o detalhe. */
+/** Card resumido do bife: o que é, quando, e como está. Clique abre o detalhe. */
 function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => void }) {
   const { openBlock, moveBlock, blocks } = useStore();
   const idx = blocks.findIndex((b) => b.id === row.id);
@@ -82,9 +98,9 @@ function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => voi
       className="bg-panel border border-line rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-[box-shadow,transform] hover:-translate-y-[2px] hover:shadow-cardHover"
       style={{ borderTop: `4px solid ${row.color}` }}
     >
-      {/* Cabeçalho */}
-      <div className="px-5 pt-4 pb-[14px] border-b border-line2">
-        <div className="flex items-center gap-2 mb-[9px] flex-wrap">
+      {/* Identificação */}
+      <div className="px-5 pt-4 pb-4">
+        <div className="flex items-center gap-2 mb-[10px]">
           <span
             className="text-[10px] font-extrabold uppercase tracking-[0.4px] px-[9px] py-[3px] rounded-[20px] text-white inline-flex items-center gap-[3px]"
             style={{ background: row.color }}
@@ -99,9 +115,6 @@ function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => voi
               {row.phaseShort}
             </span>
           )}
-          <span className="text-[11px] font-extrabold text-inkSoft">{row.daysLabel}</span>
-          <span className="text-[11px] font-medium text-inkMute">· {row.weekRange}</span>
-          {/* Ações */}
           <div className="ml-auto flex items-center gap-1">
             <button
               onClick={(e) => stop(e, () => moveBlock(row.id, -1))}
@@ -127,58 +140,43 @@ function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => voi
             </button>
           </div>
         </div>
+
         <h3 className="font-head text-[16px] font-extrabold tracking-[-0.02em] text-inkDark">{row.name}</h3>
-        <div className="text-[11.5px] text-inkSoft font-medium mt-1 leading-[1.45] line-clamp-2">{row.theme}</div>
+        <div className="text-[11.5px] font-semibold text-inkLabel mt-[2px]">
+          {row.days} dias · {row.weekRange}
+        </div>
+
+        <div className="mt-3">
+          <div className="text-[10px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-1">
+            O que entra neste bife
+          </div>
+          <div className="text-[12px] text-inkSoft font-medium leading-[1.5] line-clamp-2">{row.theme}</div>
+        </div>
       </div>
 
-      {/* Progresso / semáforo */}
-      <div className="px-5 py-[13px] border-b border-line2">
-        <div className="flex items-center gap-[10px]">
-          <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: row.lampColor }} />
+      {/* Andamento */}
+      <div className="px-5 py-[13px] border-t border-line2">
+        <div className="flex items-center gap-[9px]">
+          <span className="w-[10px] h-[10px] rounded-full flex-shrink-0" style={{ background: row.lampColor }} />
           <span className="text-[12px] font-extrabold text-ink">{row.txt}</span>
-          <span className="ml-auto text-[11px] font-bold text-inkSoft">{row.meta}</span>
+          {row.count > 0 && <span className="ml-auto text-[11.5px] font-bold text-inkSoft">{row.sponsorMeta}</span>}
         </div>
-        <div className="bg-chip rounded-[20px] h-[7px] overflow-hidden mt-[11px]">
+        <div className="bg-chip rounded-[20px] h-[7px] overflow-hidden mt-[10px]">
           <div className="h-full" style={{ width: row.pct, background: row.color }} />
         </div>
-        <div className="text-[10px] font-extrabold text-inkLabel text-right mt-[5px]">{row.pctLabel} entregue</div>
       </div>
 
-      {/* Distribuição por área */}
-      {row.areaSegs.length > 0 && (
-        <div className="px-5 py-[13px] border-b border-line2">
-          <div className="text-[10px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-2">Por área</div>
-          <div className="flex h-[18px] rounded-[20px] overflow-hidden bg-chip">
-            {row.areaSegs.map((seg) => (
-              <div
-                key={seg.name}
-                className="h-full flex items-center justify-center text-[9.5px] font-extrabold text-white"
-                style={{ width: seg.w, background: seg.color }}
-                title={`${seg.name}: ${seg.count}`}
-              >
-                {seg.count}
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] font-bold text-inkSoft">
-            {row.areaSegs.map((seg) => (
-              <span key={seg.name} className="inline-flex items-center gap-[4px]">
-                <i className="w-[8px] h-[8px] rounded-[2px] inline-block" style={{ background: seg.color }} />
-                {seg.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Rodapé: chamada para o detalhe */}
-      <div className="px-5 py-3 flex items-center justify-between">
+      {/* Rodapé */}
+      <div className="px-5 py-3 border-t border-line2 flex items-center gap-2">
         <span className="text-[11.5px] font-semibold text-inkFaint">
-          {row.count === 0 ? "Sem tarefas ainda" : `${row.count} tarefa(s) neste bife`}
+          {row.count === 0 ? "Sem tarefas ainda" : `${row.count} ${row.count === 1 ? "tarefa" : "tarefas"}`}
         </span>
-        <span className="text-[12px] font-extrabold text-primary inline-flex items-center gap-1">
-          Ver bife →
-        </span>
+        {row.blocked > 0 && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-warnText bg-warnBg border border-warnLine rounded-[20px] px-2 py-[2px]">
+            <WarnIcon style={{ stroke: "#FD8E1F" }} /> {row.blocked} com trava
+          </span>
+        )}
+        <span className="ml-auto text-[12px] font-extrabold text-primary">Ver bife →</span>
       </div>
     </div>
   );
@@ -224,7 +222,7 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
         <span className="text-[15px] leading-none">←</span> Voltar para os bifes
       </button>
 
-      {/* Cabeçalho do bife */}
+      {/* Cabeçalho do bife (identificação + andamento) */}
       <div className="bg-panel border border-line rounded-2xl px-6 py-5" style={{ borderTop: `4px solid ${row.color}` }}>
         <div className="flex items-center gap-[10px] flex-wrap">
           <span
@@ -238,8 +236,9 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
               {row.phaseShort}
             </span>
           )}
-          <span className="text-[12px] font-bold text-inkSoft">{row.daysLabel}</span>
-          <span className="text-[12px] font-medium text-inkMute">· {row.weekRange}</span>
+          <span className="text-[12px] font-bold text-inkSoft">
+            {row.days} dias · {row.weekRange}
+          </span>
           <button
             onClick={() => openBlock(row.id)}
             className="ml-auto px-3 py-[8px] rounded-[10px] text-[12.5px] font-bold cursor-pointer border border-inputLine bg-panel text-inkSoft hover:bg-chip hover:text-ink transition-colors"
@@ -247,63 +246,59 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
             Editar bife
           </button>
         </div>
+
         <h2 className="font-head text-[22px] font-extrabold tracking-[-0.02em] text-inkDark mt-3">{row.name}</h2>
         <div className="text-[12.5px] text-inkSoft font-medium mt-1 leading-[1.5] max-w-[680px]">{row.theme}</div>
+
+        {/* Andamento */}
+        <div className="mt-4 pt-4 border-t border-line2">
+          <div className="flex items-center gap-[9px]">
+            <span className="w-[10px] h-[10px] rounded-full flex-shrink-0" style={{ background: row.lampColor }} />
+            <span className="text-[12.5px] font-extrabold text-ink">{row.txt}</span>
+            {row.count > 0 && <span className="ml-auto text-[12px] font-bold text-inkSoft">{row.sponsorMeta}</span>}
+          </div>
+          <div className="bg-chip rounded-[20px] h-2 overflow-hidden mt-[10px]">
+            <div className="h-full" style={{ width: row.pct, background: row.color }} />
+          </div>
+        </div>
       </div>
 
       {/* KPIs do bife */}
       <div className="grid grid-cols-4 gap-[14px]">
         <Kpi value={row.count} label="Tarefas no bife" color={row.color} />
-        <Kpi value={kEntregue} label="Entregues" color="#10B981" />
-        <Kpi value={kAndamento} label="Em andamento" color="#F59E0B" />
-        <Kpi value={kTravadas} label="Com trava" color="#FF6000" />
+        <Kpi value={kEntregue} label="Entregues" color="#23BD33" />
+        <Kpi value={kAndamento} label="Em andamento" color="#FD8E1F" />
+        <Kpi value={kTravadas} label="Com trava" color="#E34444" />
       </div>
 
-      {/* Progresso + área */}
-      <div className="grid grid-cols-[1fr_1fr] gap-4 items-start">
+      {/* Distribuição por área */}
+      {row.areaSegs.length > 0 && (
         <div className="bg-panel border border-line rounded-2xl p-5">
-          <div className="text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-3">Andamento</div>
-          <div className="flex items-center gap-[10px]">
-            <span className="w-[11px] h-[11px] rounded-full flex-shrink-0" style={{ background: row.lampColor }} />
-            <span className="text-[13px] font-extrabold text-ink">{row.txt}</span>
-            <span className="ml-auto text-[11px] font-bold text-inkSoft">{row.meta}</span>
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-3">
+            Tarefas por área
           </div>
-          <div className="bg-chip rounded-[20px] h-2 overflow-hidden mt-3">
-            <div className="h-full" style={{ width: row.pct, background: row.color }} />
+          <div className="flex h-5 rounded-[20px] overflow-hidden bg-chip">
+            {row.areaSegs.map((seg) => (
+              <div
+                key={seg.name}
+                className="h-full flex items-center justify-center text-[10px] font-extrabold text-white"
+                style={{ width: seg.w, background: seg.color }}
+                title={`${seg.name}: ${seg.count}`}
+              >
+                {seg.count}
+              </div>
+            ))}
           </div>
-          <div className="text-[10px] font-extrabold text-inkLabel text-right mt-[5px]">{row.pctLabel} entregue</div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10.5px] font-bold text-inkSoft">
+            {row.areaSegs.map((seg) => (
+              <span key={seg.name} className="inline-flex items-center gap-[4px]">
+                <i className="w-[8px] h-[8px] rounded-[2px] inline-block" style={{ background: seg.color }} />
+                {seg.name}
+              </span>
+            ))}
+          </div>
         </div>
-
-        <div className="bg-panel border border-line rounded-2xl p-5">
-          <div className="text-[11px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-3">Por área</div>
-          {row.areaSegs.length > 0 ? (
-            <>
-              <div className="flex h-5 rounded-[20px] overflow-hidden bg-chip">
-                {row.areaSegs.map((seg) => (
-                  <div
-                    key={seg.name}
-                    className="h-full flex items-center justify-center text-[10px] font-extrabold text-white"
-                    style={{ width: seg.w, background: seg.color }}
-                    title={`${seg.name}: ${seg.count}`}
-                  >
-                    {seg.count}
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10.5px] font-bold text-inkSoft">
-                {row.areaSegs.map((seg) => (
-                  <span key={seg.name} className="inline-flex items-center gap-[4px]">
-                    <i className="w-[8px] h-[8px] rounded-[2px] inline-block" style={{ background: seg.color }} />
-                    {seg.name}
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="text-[12px] text-inkMute italic font-medium">Sem tarefas ainda.</div>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Tarefas por etapa */}
       <div className="flex flex-col gap-4">
@@ -343,7 +338,7 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
                         <span className="text-[9.5px] font-extrabold uppercase tracking-[0.3px]" style={{ color: t.color }}>
                           {t.areaName}
                         </span>
-                        <span className="w-1 h-1 rounded-full bg-[#DDD5C7]" />
+                        <span className="w-1 h-1 rounded-full bg-inkMute" />
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-inkFaint">
                           <CalendarIcon style={{ stroke: "#A1A5B3" }} /> {t.dateLabel}
                         </span>
@@ -402,39 +397,8 @@ export default function BlocosView() {
 
   return (
     <div className="pt-[14px] flex flex-col gap-[18px]">
-      {/* Hero claro */}
-      <div
-        className="rounded-[18px] border border-softOrangeLine px-7 py-6 relative overflow-hidden"
-        style={{ background: "linear-gradient(120deg, #FFEEE8 0%, #FFFFFF 60%)" }}
-      >
-        <OxIcon
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-[170px] h-[170px] text-primary opacity-[0.32]"
-        />
-        <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-primary">Estratégia de blocos</div>
-        <h2 className="font-head text-[22px] font-extrabold text-inkDark mt-[7px] mb-[5px] tracking-[-0.02em]">
-          O boi é o app · cada bife é um bloco 🥩
-        </h2>
-        <div className="text-[12.5px] font-medium text-inkSoft max-w-[640px] leading-[1.5]">
-          Cada bloco entrega o pacote completo do seu tema (tela + back + regra + cadastro), com prazo próprio. A soma
-          dos blocos fecha os {summary.totalDays} dias do período. Clique num bife para ver o corte completo.
-        </div>
-      </div>
-
-      {/* Resumo do período */}
-      <div className="grid grid-cols-4 gap-[14px]">
-        <InfoTile value={`${summary.totalDays}d`} label="Período total" />
-        <InfoTile value={String(blocks.length)} label="Blocos (bifes)" />
-        <InfoTile
-          value={`${summary.allocatedDays}d`}
-          label="Dias alocados"
-          sub={summary.fitLabel}
-          subColor={summary.fitColor}
-        />
-        <InfoTile value={`${summary.weeks}`} label="Checkpoints semanais" />
-      </div>
-
-      {/* Timeline */}
-      {blocks.length > 0 && <Timeline rows={rows} onPick={setDetailId} />}
+      {/* Período + linha do tempo */}
+      {blocks.length > 0 && <PeriodCard rows={rows} summary={summary} onPick={setDetailId} />}
 
       {/* Cards de blocos */}
       {blocks.length === 0 ? (
