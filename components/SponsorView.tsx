@@ -32,17 +32,45 @@ function MilestoneCard({ todayIso }: { todayIso: string }) {
           ? { txt: "Entrega é hoje", color: "#FD8E1F" }
           : { txt: `Atrasado há ${-line.daysLeft} ${line.daysLeft === -1 ? "dia" : "dias"}`, color: "#E34444" };
 
-  const Label = ({ seg }: { seg: (typeof line.segs)[number] }) => (
-    <div
-      className="absolute -translate-x-1/2 text-center w-[130px]"
-      style={{ left: `${clampPct(seg.endPct)}%` }}
-    >
-      <div className="text-[11px] font-extrabold leading-[1.25] text-inkDark truncate" title={seg.name}>
-        {seg.name}
+  const lastColor = line.segs[line.segs.length - 1].color;
+
+  // Caixa flutuante do marco (estilo "balão"): nome + data, com rabinho
+  // apontando para a linha e conector pontilhado. `dir` alterna acima/abaixo.
+  const MBox = ({ seg, dir }: { seg: (typeof line.segs)[number]; dir: "up" | "down" }) => {
+    const tailStyle =
+      dir === "up" ? { background: seg.color, bottom: "-4px" } : { background: seg.color, top: "-4px" };
+    const box = (
+      <div
+        className="relative rounded-[10px] px-[11px] py-[7px] w-[150px] shadow-[0_3px_12px_rgba(29,32,38,0.14)]"
+        style={{ background: seg.color }}
+      >
+        <div className="text-[11px] font-extrabold text-white leading-[1.2] truncate" title={seg.name}>
+          {seg.name}
+        </div>
+        <div className="text-[10px] font-bold text-white/85 mt-[1px]">{seg.dateLabel}</div>
+        <span className="absolute left-1/2 -translate-x-1/2 w-[11px] h-[11px] rotate-45" style={tailStyle} />
       </div>
-      <div className="text-[10px] font-bold text-inkFaint mt-[1px]">{seg.dateLabel}</div>
-    </div>
-  );
+    );
+    const dotted = <div className="flex-1 w-0 border-l-2 border-dotted border-inkMute/50" />;
+    return (
+      <div
+        className="absolute top-0 bottom-0 -translate-x-1/2 flex flex-col items-center"
+        style={{ left: `${clampPct(seg.endPct)}%` }}
+      >
+        {dir === "up" ? (
+          <>
+            {box}
+            {dotted}
+          </>
+        ) : (
+          <>
+            {dotted}
+            {box}
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="bg-panel border border-line rounded-2xl shadow-soft p-5 mb-4">
@@ -59,56 +87,70 @@ function MilestoneCard({ todayIso }: { todayIso: string }) {
         )}
       </div>
 
-      {/* Rótulos de cima */}
-      <div className="relative h-[38px] mt-1">
+      {/* Caixas acima da linha (marcos ímpares) */}
+      <div className="relative h-[84px] mt-2">
         {line.segs.filter((s) => s.labelTop).map((s) => (
-          <Label key={s.id} seg={s} />
+          <MBox key={s.id} seg={s} dir="up" />
         ))}
       </div>
 
-      {/* A linha: segmentos coloridos + marcos (fim de cada bife) */}
-      <div className="relative h-[16px] rounded-[10px] bg-chip">
+      {/* A linha: segmentos finos + nós (fim de cada bife) + seta + hoje */}
+      <div className="relative h-[22px]">
         {line.segs.map((s) => (
           <div
             key={s.id}
-            className="absolute top-0 bottom-0 first:rounded-l-[10px]"
+            className="absolute top-1/2 -translate-y-1/2 h-[5px]"
             style={{ left: `${s.leftPct}%`, width: `${s.widthPct}%`, background: s.color }}
             title={`${s.name} · até ${s.dateLabel}`}
           />
         ))}
+        {/* Seta indicando continuidade do tempo */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 right-[-5px] w-0 h-0"
+          style={{
+            borderTop: "6px solid transparent",
+            borderBottom: "6px solid transparent",
+            borderLeft: `9px solid ${lastColor}`,
+          }}
+        />
+        {/* Nós: entregue = preenchido com ✓; senão = círculo vazado */}
         {line.segs.map((s) => (
           <div
-            key={s.id + "-dot"}
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[26px] h-[26px] rounded-full flex items-center justify-center"
-            style={{ left: `${s.endPct}%`, background: s.color, boxShadow: "0 0 0 3px #fff" }}
+            key={s.id + "-node"}
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[18px] h-[18px] rounded-full flex items-center justify-center"
+            style={
+              s.delivered
+                ? { left: `${s.endPct}%`, background: s.color, boxShadow: "0 0 0 3px #fff" }
+                : {
+                    left: `${s.endPct}%`,
+                    background: "#fff",
+                    boxShadow: `0 0 0 3px #fff, inset 0 0 0 2px ${s.color}`,
+                  }
+            }
             title={`${s.name} · ${s.dateLabel}${s.delivered ? " · entregue" : ""}`}
           >
-            {s.delivered ? (
-              <span className="text-white text-[12px] font-extrabold leading-none">✓</span>
-            ) : (
-              <span className="w-[10px] h-[10px] rounded-full bg-white" />
-            )}
+            {s.delivered && <span className="text-white text-[10px] font-extrabold leading-none">✓</span>}
           </div>
         ))}
         {/* Marcador de hoje */}
         {line.todayPct !== null && (
           <div
-            className="absolute -top-[6px] -bottom-[6px] w-[2px] bg-inkDark/70 rounded"
+            className="absolute -top-[8px] -bottom-[8px] border-l-2 border-dashed border-inkDark/55"
             style={{ left: `${line.todayPct}%` }}
             title={`Hoje · ${todayIso.split("-").reverse().join("/")}`}
           />
         )}
       </div>
 
-      {/* Rótulos de baixo */}
-      <div className="relative h-[38px] mt-1">
+      {/* Caixas abaixo da linha (marcos pares) */}
+      <div className="relative h-[84px]">
         {line.segs.filter((s) => !s.labelTop).map((s) => (
-          <Label key={s.id} seg={s} />
+          <MBox key={s.id} seg={s} dir="down" />
         ))}
         {line.todayPct !== null && (
           <div
-            className="absolute -translate-x-1/2 text-[9.5px] font-extrabold uppercase tracking-[0.4px] text-inkDark/70"
-            style={{ left: `${clampPct(line.todayPct)}%`, top: "26px" }}
+            className="absolute -translate-x-1/2 text-[9px] font-extrabold uppercase tracking-[0.4px] text-inkDark/60"
+            style={{ left: `${clampPct(line.todayPct)}%`, top: "2px" }}
           >
             hoje
           </div>
