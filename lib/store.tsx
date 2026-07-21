@@ -102,7 +102,6 @@ interface StoreValue {
   addBlock: (input: BlockInput) => void;
   updateBlock: (id: string, patch: BlockInput) => void;
   deleteBlock: (id: string) => void;
-  moveBlock: (id: string, dir: -1 | 1) => void;
   addPerson: (input: PersonInput) => void;
   updatePerson: (id: string, patch: PersonInput) => void;
   deletePerson: (id: string) => void;
@@ -218,12 +217,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, [tasks, search, areaFilter, blockFilter, whoFilter, statusFilter]);
 
-  const persistBlocksOrder = (list: Bloco[]) => {
-    const sb = supabase;
-    if (!sb) return;
-    list.forEach((b, i) => persist(sb.from("blocks").update({ sort_order: i }).eq("id", b.id)));
-  };
-
   // ---- Tarefas ----
   const addTask = (input: NewTaskInput) => {
     const id = makeId("t");
@@ -272,18 +265,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       persist(supabase.from("tasks").update({ block_id: null }).eq("block_id", id));
       persist(supabase.from("blocks").delete().eq("id", id));
     }
-  };
-
-  const moveBlock = (id: string, dir: -1 | 1) => {
-    setBlocks((prev) => {
-      const i = prev.findIndex((b) => b.id === id);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= prev.length) return prev;
-      const next = [...prev];
-      [next[i], next[j]] = [next[j], next[i]];
-      persistBlocksOrder(next);
-      return next;
-    });
   };
 
   // ---- Pessoas ----
@@ -368,7 +349,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     addBlock,
     updateBlock,
     deleteBlock,
-    moveBlock,
     addPerson,
     updatePerson,
     deletePerson,

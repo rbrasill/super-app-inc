@@ -97,10 +97,7 @@ function PeriodCard({
 
 /** Card resumido do bife: o que é, quando, e como está. Clique abre o detalhe. */
 function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => void }) {
-  const { openBlock, moveBlock, blocks } = useStore();
-  const idx = blocks.findIndex((b) => b.id === row.id);
-  const isFirst = idx <= 0;
-  const isLast = idx >= blocks.length - 1;
+  const { openBlock } = useStore();
   const stop = (e: React.MouseEvent, fn: () => void) => {
     e.stopPropagation();
     fn();
@@ -129,30 +126,12 @@ function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => voi
               {row.phaseShort}
             </span>
           )}
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              onClick={(e) => stop(e, () => moveBlock(row.id, -1))}
-              disabled={isFirst}
-              className="w-6 h-6 rounded-md text-inkMute hover:bg-chip hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-[13px] font-bold"
-              aria-label="Mover para cima"
-            >
-              ↑
-            </button>
-            <button
-              onClick={(e) => stop(e, () => moveBlock(row.id, 1))}
-              disabled={isLast}
-              className="w-6 h-6 rounded-md text-inkMute hover:bg-chip hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-[13px] font-bold"
-              aria-label="Mover para baixo"
-            >
-              ↓
-            </button>
-            <button
-              onClick={(e) => stop(e, () => openBlock(row.id))}
-              className="px-2 h-6 rounded-md text-[11px] font-bold text-inkSoft hover:bg-chip hover:text-ink transition-colors"
-            >
-              Editar
-            </button>
-          </div>
+          <button
+            onClick={(e) => stop(e, () => openBlock(row.id))}
+            className="ml-auto px-2 h-6 rounded-md text-[11px] font-bold text-inkSoft hover:bg-chip hover:text-ink transition-colors"
+          >
+            Editar
+          </button>
         </div>
 
         <h3 className="font-head text-[16px] font-extrabold tracking-[-0.02em] text-inkDark">{row.name}</h3>

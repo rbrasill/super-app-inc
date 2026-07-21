@@ -202,9 +202,20 @@ export interface BlocksSummary {
   fitColor: string;
 }
 
+/** Ordena os bifes cronologicamente: por início, depois fim; sem data vai ao fim. */
+function chronological(blocks: Bloco[]): Bloco[] {
+  return [...blocks].sort((a, b) => {
+    if (!a.start && !b.start) return 0;
+    if (!a.start) return 1;
+    if (!b.start) return -1;
+    if (a.start !== b.start) return a.start < b.start ? -1 : 1;
+    return (a.end || "") < (b.end || "") ? -1 : (a.end || "") > (b.end || "") ? 1 : 0;
+  });
+}
+
 export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): BlockRow[] {
   const projTime = toTime(project.startDate) ?? 0;
-  return blocks.map((b, i) => {
+  return chronological(blocks).map((b, i) => {
     const items = tasks.filter((tk) => tk.blockId === b.id);
     const done = items.filter((tk) => tk.status === "entregue").length;
     const blocked = items.filter((tk) => tk.dep).length;
