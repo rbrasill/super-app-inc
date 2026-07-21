@@ -340,6 +340,95 @@ export function getBlocksSummary(blocks: Bloco[]): BlocksSummary {
   };
 }
 
+/** Um marco na linha do tempo: a entrega de um bife. */
+export interface MilestoneSeg {
+  id: string;
+  name: string;
+  color: string;
+  /** Segmento do bife na linha (percentuais 0–100). */
+  leftPct: number;
+  widthPct: number;
+  /** Posição do marco (fim do bife), 0–100. */
+  endPct: number;
+  /** Data do marco (dd/mm). */
+  dateLabel: string;
+  /** Todas as tarefas do bife entregues (marco cumprido). */
+  delivered: boolean;
+  /** Rótulo acima (true) ou abaixo (false) da linha — alternado. */
+  labelTop: boolean;
+}
+
+export interface MilestoneLine {
+  segs: MilestoneSeg[];
+  /** Início e fim da janela do plano (dd/mm). */
+  startLabel: string;
+  endLabel: string;
+  /** Data prevista de entrega (fim do último bife, ISO). */
+  deliveryDate: string;
+  /** Posição de hoje na linha (0–100) ou null se fora/indefinido. */
+  todayPct: number | null;
+  /** Dias até a entrega (negativo = atrasado); null sem datas. */
+  daysLeft: number | null;
+  /** Tarefas com fim DEPOIS da entrega prevista (desalinhamento do plano). */
+  tasksBeyond: number;
+}
+
+/**
+ * Linha de marcos do projeto: cada bife com datas vira um segmento e seu fim
+ * é um marco de entrega. A entrega do projeto é o fim do último bife (o plano
+ * é o compromisso; tarefas além dele são apontadas em `tasksBeyond`).
+ */
+export function getMilestones(tasks: Task[], blocks: Bloco[], todayIso: string): MilestoneLine {
+  const dated = chronological(blocks).filter((b) => b.start && b.end);
+  const empty: MilestoneLine = {
+    segs: [],
+    startLabel: "",
+    endLabel: "",
+    deliveryDate: "",
+    todayPct: null,
+    daysLeft: null,
+    tasksBeyond: 0,
+  };
+  if (!dated.length) return empty;
+
+  const startT = Math.min(...dated.map((b) => toTime(b.start) as number));
+  const endT = Math.max(...dated.map((b) => toTime(b.end) as number));
+  const span = Math.max(1, endT - startT);
+  const pct = (t: number) => Math.max(0, Math.min(100, ((t - startT) / span) * 100));
+
+  const segs: MilestoneSeg[] = dated.map((b, i) => {
+    const items = tasks.filter((tk) => tk.blockId === b.id);
+    const s = toTime(b.start) as number;
+    const e = toTime(b.end) as number;
+    return {
+      id: b.id,
+      name: b.name,
+      color: b.color,
+      leftPct: pct(s),
+      widthPct: Math.max(0, pct(e) - pct(s)),
+      endPct: pct(e),
+      dateLabel: fmt(b.end),
+      delivered: items.length > 0 && items.every((tk) => tk.status === "entregue"),
+      labelTop: i % 2 === 0,
+    };
+  });
+
+  const deliveryDate = dated.reduce((max, b) => (b.end > max ? b.end : max), dated[0].end);
+  const todayT = toTime(todayIso);
+  const daysLeft =
+    todayT !== null ? Math.ceil(((toTime(deliveryDate) as number) - todayT) / DAY_MS) : null;
+
+  return {
+    segs,
+    startLabel: fmt(dated[0].start),
+    endLabel: fmt(deliveryDate),
+    deliveryDate,
+    todayPct: todayT !== null && todayT >= startT && todayT <= endT ? pct(todayT) : null,
+    daysLeft,
+    tasksBeyond: tasks.filter((tk) => tk.end && tk.end > deliveryDate).length,
+  };
+}
+
 export interface RiskRow {
   desc: string;
   sub: string;

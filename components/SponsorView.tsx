@@ -1,6 +1,7 @@
 "use client";
 
-import { getBlocks, getDecisions, getDelivered, getKpis } from "@/lib/derive";
+import { useEffect, useState } from "react";
+import { getBlocks, getDecisions, getDelivered, getKpis, getMilestones } from "@/lib/derive";
 import { useStore } from "@/lib/store";
 import KpiCard from "./KpiCard";
 
@@ -13,12 +14,141 @@ function SectionTitle({ accent, children }: { accent: string; children: React.Re
   );
 }
 
+/** Restringe o rótulo para não vazar das bordas da linha. */
+const clampPct = (p: number) => Math.max(7, Math.min(93, p));
+
+/** Linha de marcos do projeto (cada bife entregue é um marco). */
+function MilestoneCard({ todayIso }: { todayIso: string }) {
+  const { tasks, blocks } = useStore();
+  const line = getMilestones(tasks, blocks, todayIso);
+  if (!line.segs.length) return null;
+
+  const countdown =
+    line.daysLeft === null
+      ? null
+      : line.daysLeft > 0
+        ? { txt: `Faltam ${line.daysLeft} ${line.daysLeft === 1 ? "dia" : "dias"}`, color: "#FF6636" }
+        : line.daysLeft === 0
+          ? { txt: "Entrega é hoje", color: "#FD8E1F" }
+          : { txt: `Atrasado há ${-line.daysLeft} ${line.daysLeft === -1 ? "dia" : "dias"}`, color: "#E34444" };
+
+  const Label = ({ seg }: { seg: (typeof line.segs)[number] }) => (
+    <div
+      className="absolute -translate-x-1/2 text-center w-[130px]"
+      style={{ left: `${clampPct(seg.endPct)}%` }}
+    >
+      <div className="text-[11px] font-extrabold leading-[1.25] text-inkDark truncate" title={seg.name}>
+        {seg.name}
+      </div>
+      <div className="text-[10px] font-bold text-inkFaint mt-[1px]">
+        {seg.dateLabel}
+        {seg.delivered ? " · entregue ✓" : ""}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-panel border border-line rounded-2xl shadow-soft p-5 mb-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <SectionTitle accent="#564FFD">Marcos do projeto</SectionTitle>
+        <div className="flex-1" />
+        {countdown && (
+          <span
+            className="text-[12px] font-extrabold px-3 py-[5px] rounded-[20px] -mt-2"
+            style={{ background: countdown.color + "16", color: countdown.color }}
+          >
+            {countdown.txt} · entrega {line.endLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Rótulos de cima */}
+      <div className="relative h-[38px] mt-1">
+        {line.segs.filter((s) => s.labelTop).map((s) => (
+          <Label key={s.id} seg={s} />
+        ))}
+      </div>
+
+      {/* A linha: segmentos coloridos + marcos (fim de cada bife) */}
+      <div className="relative h-[16px] rounded-[10px] bg-chip">
+        {line.segs.map((s) => (
+          <div
+            key={s.id}
+            className="absolute top-0 bottom-0 first:rounded-l-[10px]"
+            style={{ left: `${s.leftPct}%`, width: `${s.widthPct}%`, background: s.color }}
+            title={`${s.name} · até ${s.dateLabel}`}
+          />
+        ))}
+        {line.segs.map((s) => (
+          <div
+            key={s.id + "-dot"}
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[26px] h-[26px] rounded-full flex items-center justify-center"
+            style={{ left: `${s.endPct}%`, background: s.color, boxShadow: "0 0 0 3px #fff" }}
+            title={`${s.name} · ${s.dateLabel}${s.delivered ? " · entregue" : ""}`}
+          >
+            {s.delivered ? (
+              <span className="text-white text-[12px] font-extrabold leading-none">✓</span>
+            ) : (
+              <span className="w-[10px] h-[10px] rounded-full bg-white" />
+            )}
+          </div>
+        ))}
+        {/* Marcador de hoje */}
+        {line.todayPct !== null && (
+          <div
+            className="absolute -top-[6px] -bottom-[6px] w-[2px] bg-inkDark/70 rounded"
+            style={{ left: `${line.todayPct}%` }}
+            title={`Hoje · ${todayIso.split("-").reverse().slice(0, 2).join("/")}`}
+          />
+        )}
+      </div>
+
+      {/* Rótulos de baixo */}
+      <div className="relative h-[38px] mt-1">
+        {line.segs.filter((s) => !s.labelTop).map((s) => (
+          <Label key={s.id} seg={s} />
+        ))}
+        {line.todayPct !== null && (
+          <div
+            className="absolute -translate-x-1/2 text-[9.5px] font-extrabold uppercase tracking-[0.4px] text-inkDark/70"
+            style={{ left: `${clampPct(line.todayPct)}%`, top: "26px" }}
+          >
+            hoje
+          </div>
+        )}
+      </div>
+
+      {/* Régua início → fim */}
+      <div className="flex justify-between mt-1 text-[10px] font-bold text-inkMute">
+        <span>Início · {line.startLabel}</span>
+        <span>Entrega · {line.endLabel}</span>
+      </div>
+
+      {line.tasksBeyond > 0 && (
+        <div className="mt-3 text-[11.5px] font-semibold text-warnText bg-warnBg border border-warnLine rounded-[10px] px-3 py-2 inline-block">
+          ⚠️ {line.tasksBeyond} tarefa(s) com fim depois da entrega prevista — o plano dos bifes pode precisar de
+          ajuste.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SponsorView() {
   const { tasks, blocks, people, areas } = useStore();
   const kpis = getKpis(tasks, people);
   const blockRows = getBlocks(tasks, blocks, areas);
   const decisions = getDecisions(tasks, people, areas);
   const delivered = getDelivered(tasks, areas);
+
+  // Data de hoje só no cliente (evita divergência com o HTML pré-renderizado).
+  const [todayIso, setTodayIso] = useState("");
+  useEffect(() => {
+    const d = new Date();
+    setTodayIso(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    );
+  }, []);
 
   return (
     <div className="pt-[14px]">
@@ -39,6 +169,9 @@ export default function SponsorView() {
           detalhe operacional — esse fica no quadro do time.
         </div>
       </div>
+
+      {/* Marcos do projeto (linha do tempo) */}
+      {todayIso && <MilestoneCard todayIso={todayIso} />}
 
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-[14px] mb-4">
