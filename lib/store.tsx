@@ -1,7 +1,17 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { BLOCKS, PEOPLE, TASKS } from "./data";
+import {
+  blockToRow,
+  blockFromRow,
+  isSupabaseEnabled,
+  personFromRow,
+  personToRow,
+  supabase,
+  taskFromRow,
+  taskToRow,
+} from "./supabase";
 import type { AreaId, Bloco, Person, StatusId, Task } from "./types";
 
 export type AreaFilter = AreaId | "all";
@@ -37,23 +47,26 @@ export interface PersonInput {
 
 export type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
-/** Gera um id único com o prefixo dado, sem colidir com os existentes. */
-function makeId(prefix: string, existing: { id: string }[]): string {
-  const ids = new Set(existing.map((e) => e.id));
-  let n = existing.length + 1;
-  while (ids.has(`${prefix}${n}`)) n++;
-  return `${prefix}${n}`;
+/** Gera um id único (usado em modo offline e como chave dos inserts). */
+function makeId(prefix: string): string {
+  const rnd = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  return `${prefix}_${rnd.replace(/-/g, "").slice(0, 12)}`;
+}
+
+/** Dispara uma escrita no Supabase sem bloquear a UI; loga erro se houver. */
+function persist(p: PromiseLike<{ error: unknown }> | undefined) {
+  if (!p) return;
+  Promise.resolve(p).then(({ error }) => {
+    if (error) console.error("[supabase]", error);
+  });
 }
 
 interface StoreValue {
-  /** Todas as tarefas (sem filtro) — usado por Dashboard / Patrocinador / Blocos. */
   tasks: Task[];
-  /** Tarefas após busca + filtros — usado no Quadro. */
   filteredTasks: Task[];
-  /** Blocos ("bifes") do projeto. */
   blocks: Bloco[];
-  /** Pessoas & papéis (time). */
   people: Person[];
+  loading: boolean;
   search: string;
   setSearch: (v: string) => void;
   areaFilter: AreaFilter;
@@ -66,31 +79,25 @@ interface StoreValue {
   setStatusFilter: (v: StatusFilter) => void;
   hasActiveFilters: boolean;
   clearFilters: () => void;
-  // Tarefas
   addTask: (input: NewTaskInput) => void;
   updateTask: (id: string, patch: NewTaskInput) => void;
   deleteTask: (id: string) => void;
   moveTask: (id: string, status: StatusId) => void;
-  // Blocos
   addBlock: (input: BlockInput) => void;
   updateBlock: (id: string, patch: BlockInput) => void;
   deleteBlock: (id: string) => void;
   moveBlock: (id: string, dir: -1 | 1) => void;
-  // Pessoas
   addPerson: (input: PersonInput) => void;
   updatePerson: (id: string, patch: PersonInput) => void;
   deletePerson: (id: string) => void;
-  /** Modal de criar/editar tarefa. */
   modal: ModalState;
   openNew: () => void;
   openTask: (id: string) => void;
   closeModal: () => void;
-  /** Modal de criar/editar bloco. */
   blockModal: ModalState;
   openNewBlock: () => void;
   openBlock: (id: string) => void;
   closeBlockModal: () => void;
-  /** Modal de criar/editar pessoa. */
   personModal: ModalState;
   openNewPerson: () => void;
   openPerson: (id: string) => void;
@@ -100,9 +107,16 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [tasks, setTasks] = useState<Task[]>(() => [...TASKS]);
-  const [blocks, setBlocks] = useState<Bloco[]>(() => BLOCKS.map((b) => ({ ...b })));
-  const [people, setPeople] = useState<Person[]>(() => PEOPLE.map((p) => ({ ...p })));
+  // Sem Supabase: usa os dados estáticos (modo demo em memória).
+  const [tasks, setTasks] = useState<Task[]>(() => (isSupabaseEnabled ? [] : [...TASKS]));
+  const [blocks, setBlocks] = useState<Bloco[]>(() =>
+    isSupabaseEnabled ? [] : BLOCKS.map((b) => ({ ...b }))
+  );
+  const [people, setPeople] = useState<Person[]>(() =>
+    isSupabaseEnabled ? [] : PEOPLE.map((p) => ({ ...p }))
+  );
+  const [loading, setLoading] = useState(isSupabaseEnabled);
+
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState<AreaFilter>("all");
   const [blockFilter, setBlockFilter] = useState<BlockFilter>("all");
@@ -111,6 +125,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [modal, setModal] = useState<ModalState>(null);
   const [blockModal, setBlockModal] = useState<ModalState>(null);
   const [personModal, setPersonModal] = useState<ModalState>(null);
+
+  // Carrega do Supabase (se configurado).
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    const fallback = () => {
+      setTasks([...TASKS]);
+      setBlocks(BLOCKS.map((x) => ({ ...x })));
+      setPeople(PEOPLE.map((x) => ({ ...x })));
+    };
+    const withTimeout = <T,>(pr: PromiseLike<T>, ms: number): Promise<T> =>
+      Promise.race([
+        Promise.resolve(pr),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
+      ]);
+    (async () => {
+      try {
+        const [t, b, p] = await withTimeout(
+          Promise.all([
+            supabase.from("tasks").select("*").order("id"),
+            supabase.from("blocks").select("*").order("sort_order"),
+            supabase.from("people").select("*").order("sort_order"),
+          ]),
+          8000
+        );
+        if (!alive) return;
+        if (t.error || b.error || p.error) throw t.error || b.error || p.error;
+        setTasks((t.data ?? []).map((r) => taskFromRow(r as never)));
+        setBlocks((b.data ?? []).map((r) => blockFromRow(r as never)));
+        setPeople((p.data ?? []).map((r) => personFromRow(r as never)));
+      } catch (e) {
+        if (!alive) return;
+        // Rede/consulta falhou: cai nos dados estáticos para o app não ficar vazio.
+        console.error("[supabase] load", e);
+        fallback();
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const filteredTasks = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -127,31 +184,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, [tasks, search, areaFilter, blockFilter, whoFilter, statusFilter]);
 
+  const persistBlocksOrder = (list: Bloco[]) => {
+    const sb = supabase;
+    if (!sb) return;
+    list.forEach((b, i) => persist(sb.from("blocks").update({ sort_order: i }).eq("id", b.id)));
+  };
+
   // ---- Tarefas ----
   const addTask = (input: NewTaskInput) => {
-    setTasks((prev) => [...prev, { id: makeId("t", prev), ...input }]);
+    const id = makeId("t");
+    setTasks((prev) => [...prev, { id, ...input }]);
+    if (supabase) persist(supabase.from("tasks").insert({ id, ...taskToRow(input) }));
   };
 
   const updateTask = (id: string, patch: NewTaskInput) => {
     setTasks((prev) => prev.map((tk) => (tk.id === id ? { ...tk, ...patch } : tk)));
+    if (supabase) persist(supabase.from("tasks").update(taskToRow(patch)).eq("id", id));
   };
 
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((tk) => tk.id !== id));
     setModal(null);
+    if (supabase) persist(supabase.from("tasks").delete().eq("id", id));
   };
 
   const moveTask = (id: string, status: StatusId) => {
     setTasks((prev) => prev.map((tk) => (tk.id === id ? { ...tk, status } : tk)));
+    if (supabase) persist(supabase.from("tasks").update({ status_id: status }).eq("id", id));
   };
 
   // ---- Blocos ----
   const addBlock = (input: BlockInput) => {
-    setBlocks((prev) => [...prev, { id: makeId("b", prev), ...input }]);
+    const id = makeId("b");
+    setBlocks((prev) => {
+      const next = [...prev, { id, ...input }];
+      if (supabase) persist(supabase.from("blocks").insert({ id, ...blockToRow(input, prev.length) }));
+      return next;
+    });
   };
 
   const updateBlock = (id: string, patch: BlockInput) => {
     setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+    if (supabase) persist(supabase.from("blocks").update(blockToRow(patch)).eq("id", id));
   };
 
   const deleteBlock = (id: string) => {
@@ -160,6 +234,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setBlocks((prev) => prev.filter((b) => b.id !== id));
     setBlockFilter((f) => (f === id ? "all" : f));
     setBlockModal(null);
+    if (supabase) {
+      persist(supabase.from("tasks").update({ block_id: null }).eq("block_id", id));
+      persist(supabase.from("blocks").delete().eq("id", id));
+    }
   };
 
   const moveBlock = (id: string, dir: -1 | 1) => {
@@ -169,30 +247,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (i < 0 || j < 0 || j >= prev.length) return prev;
       const next = [...prev];
       [next[i], next[j]] = [next[j], next[i]];
+      persistBlocksOrder(next);
       return next;
     });
   };
 
   // ---- Pessoas ----
   const addPerson = (input: PersonInput) => {
-    setPeople((prev) => [...prev, { id: makeId("p", prev), ...input }]);
+    const id = makeId("p");
+    setPeople((prev) => {
+      if (supabase) persist(supabase.from("people").insert({ id, ...personToRow(input, prev.length) }));
+      return [...prev, { id, ...input }];
+    });
   };
 
   const updatePerson = (id: string, patch: PersonInput) => {
-    // Renomear a pessoa reflete nas tarefas cujo responsável era o nome antigo.
     setPeople((prev) => {
       const old = prev.find((p) => p.id === id);
       if (old && old.name !== patch.name) {
         setTasks((ts) => ts.map((tk) => (tk.who === old.name ? { ...tk, who: patch.name } : tk)));
         setWhoFilter((f) => (f === old.name ? patch.name : f));
+        if (supabase) persist(supabase.from("tasks").update({ who: patch.name }).eq("who", old.name));
       }
       return prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
     });
+    if (supabase) persist(supabase.from("people").update(personToRow(patch)).eq("id", id));
   };
 
   const deletePerson = (id: string) => {
     setPeople((prev) => prev.filter((p) => p.id !== id));
     setPersonModal(null);
+    if (supabase) persist(supabase.from("people").delete().eq("id", id));
   };
 
   const openNew = () => setModal({ mode: "new" });
@@ -226,6 +311,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     filteredTasks,
     blocks,
     people,
+    loading,
     search,
     setSearch,
     areaFilter,

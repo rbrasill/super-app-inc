@@ -11,7 +11,7 @@ import Sidebar from "@/components/Sidebar";
 import SponsorView from "@/components/SponsorView";
 import TaskModal from "@/components/TaskModal";
 import Topbar from "@/components/Topbar";
-import { StoreProvider } from "@/lib/store";
+import { StoreProvider, useStore } from "@/lib/store";
 import type { Sub, View } from "@/lib/types";
 
 const TITLES: Record<View, [string, string]> = {
@@ -22,22 +22,34 @@ const TITLES: Record<View, [string, string]> = {
   people: ["Pessoas & papéis", "Quem faz o quê no projeto"],
 };
 
-export default function Home() {
+function Loader() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-inkFaint">
+      <div className="w-8 h-8 rounded-full border-[3px] border-line border-t-primary animate-spin" />
+      <div className="text-[12.5px] font-semibold">Carregando dados…</div>
+    </div>
+  );
+}
+
+function AppShell() {
+  const { loading } = useStore();
   const [view, setView] = useState<View>("board");
   const [sub, setSub] = useState<Sub>("kanban");
 
   const [title, subtitle] = TITLES[view];
 
   return (
-    <StoreProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-bg text-ink">
-        <Sidebar view={view} setView={setView} />
+    <div className="flex h-screen w-full overflow-hidden bg-bg text-ink">
+      <Sidebar view={view} setView={setView} />
 
-        <div className="flex-1 flex flex-col min-w-0">
-          <Topbar title={title} sub={subtitle} view={view} />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Topbar title={title} sub={subtitle} view={view} />
 
-          {view === "board" && <BoardControls sub={sub} setSub={setSub} />}
+        {view === "board" && !loading && <BoardControls sub={sub} setSub={setSub} />}
 
+        {loading ? (
+          <Loader />
+        ) : (
           <div key={view} className="sc-scroll view-anim flex-1 overflow-auto px-[34px] pt-[6px] pb-10">
             {view === "board" && <BoardView sub={sub} />}
             {view === "blocks" && <BlocosView />}
@@ -45,12 +57,20 @@ export default function Home() {
             {view === "sponsor" && <SponsorView />}
             {view === "people" && <PeopleGrid />}
           </div>
-        </div>
-
-        <TaskModal />
-        <BlockModal />
-        <PersonModal />
+        )}
       </div>
+
+      <TaskModal />
+      <BlockModal />
+      <PersonModal />
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <StoreProvider>
+      <AppShell />
     </StoreProvider>
   );
 }

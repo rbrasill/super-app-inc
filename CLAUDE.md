@@ -2,7 +2,9 @@
 
 Painel de projeto (SPA) da **INC Empreendimentos**, acompanhando a construção do
 app "Meu INC App". Stack: **Next.js 15 (App Router) · React 19 · TypeScript ·
-Tailwind CSS**. Estado hoje é estático/em memória (`lib/data.ts` + `lib/store.tsx`).
+Tailwind CSS**. O app conecta a um **Supabase** (banco ao vivo) quando as env
+`NEXT_PUBLIC_SUPABASE_*` estão configuradas; sem elas, cai em modo demo com os
+dados estáticos de `lib/data.ts`. Detalhes em **`docs/SUPABASE.md`**.
 
 O projeto segue a **estratégia de blocos ("bifes")** com hierarquia
 **fase → bloco → tarefa**: fatiado em blocos temáticos com prazo próprio em
@@ -10,10 +12,17 @@ dias (soma fecha o período de 90 dias), e cada bloco se encaixa em uma fase do
 roadmap (v1.0–v4.0). O controle de andamento é por entrega, via pipeline de
 status de cada tarefa.
 
-## ⚠️ Banco de dados — REGRA CRÍTICA
+## Banco ao vivo do app — Supabase
 
-Ao acessar PostgreSQL (via conector **Pipedream · PostgreSQL** ou qualquer
-outra forma), **use SEMPRE o banco `dpto_processos`**, schema **`meu_inc_app`**.
+A aplicação lê/grava no **Supabase** (projeto "App INC", ref
+`ntmjovdzzmpdvsvpacil`, schema `public`) via `lib/supabase.ts` + `lib/store.tsx`.
+Ver **`docs/SUPABASE.md`** (env, RLS, estrutura) e `db/supabase.sql` (DDL).
+
+## ⚠️ Conector Pipedream · PostgreSQL — REGRA CRÍTICA
+
+Ao acessar o PostgreSQL **via conector Pipedream**, **use SEMPRE o banco
+`dpto_processos`**, schema **`meu_inc_app`** (espelho standalone; não é o banco
+do app, que é o Supabase acima).
 
 - **NUNCA** opere em outro banco. O servidor hospeda vários bancos por
   departamento (`dpto_comercial`, `dpto_projeto_executivo`, `dpto_ti_*`, `n8n`,
