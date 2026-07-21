@@ -100,19 +100,37 @@ export interface Kpis {
   decisions: number;
 }
 
-function decisionTasks(tasks: Task[]): Task[] {
-  return tasks.filter(
-    (tk) => (tk.area === "financeiro" || tk.area === "parcerias") && (tk.dep || tk.status === "discovery")
+/**
+ * Localiza o patrocinador entre as pessoas pelo papel: quem tem "sponsor" no
+ * papel; senão, quem tem "patrocinador" que não seja o técnico. Assim não
+ * dependemos de um nome fixo no código (as pessoas são editáveis).
+ */
+function findSponsor(people: Person[]): Person | undefined {
+  return (
+    people.find((p) => /sponsor/i.test(p.role)) ??
+    people.find((p) => /patrocinador/i.test(p.role) && !/t[eé]cnic/i.test(p.role))
   );
 }
 
-export function getKpis(tasks: Task[]): Kpis {
+/**
+ * Decisões do patrocinador: tarefas cujo responsável é o sponsor e que ainda
+ * não foram concluídas (fora de "pronto"/"entregue"). Sem sponsor definido
+ * (ou sem nome), não há decisões.
+ */
+function decisionTasks(tasks: Task[], people: Person[]): Task[] {
+  const sponsor = findSponsor(people);
+  const name = sponsor?.name.trim();
+  if (!name) return [];
+  return tasks.filter((tk) => tk.who.trim() === name && tk.status !== "pronto" && tk.status !== "entregue");
+}
+
+export function getKpis(tasks: Task[], people: Person[] = []): Kpis {
   const total = tasks.length;
   const entregue = tasks.filter((tk) => tk.status === "entregue").length;
   const andamento = tasks.filter((tk) => ["execucao", "validacao", "pronto"].includes(tk.status)).length;
   const travadas = tasks.filter((tk) => tk.dep).length;
   const pct = total ? Math.round((entregue / total) * 100) : 0;
-  return { total, andamento, entregue, travadas, pct, decisions: decisionTasks(tasks).length };
+  return { total, andamento, entregue, travadas, pct, decisions: decisionTasks(tasks, people).length };
 }
 
 export interface AreaDistSeg {
@@ -329,8 +347,8 @@ export interface DecisionRow {
   sub: string;
 }
 
-export function getDecisions(tasks: Task[]): DecisionRow[] {
-  return decisionTasks(tasks).map((tk, i) => ({
+export function getDecisions(tasks: Task[], people: Person[]): DecisionRow[] {
+  return decisionTasks(tasks, people).map((tk, i) => ({
     n: i + 1,
     desc: tk.desc,
     sub: areaMap[tk.area].name + (tk.dep ? ` · ${tk.dep}` : ""),

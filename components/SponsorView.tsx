@@ -14,10 +14,10 @@ function SectionTitle({ accent, children }: { accent: string; children: React.Re
 }
 
 export default function SponsorView() {
-  const { tasks, blocks } = useStore();
-  const kpis = getKpis(tasks);
+  const { tasks, blocks, people } = useStore();
+  const kpis = getKpis(tasks, people);
   const blockRows = getBlocks(tasks, blocks);
-  const decisions = getDecisions(tasks);
+  const decisions = getDecisions(tasks, people);
   const delivered = getDelivered(tasks);
 
   return (
@@ -83,17 +83,24 @@ export default function SponsorView() {
           {/* Decisões que dependem de você */}
           <div className="bg-panel border border-line rounded-2xl shadow-soft p-5">
             <SectionTitle accent="#FD8E1F">Decisões que dependem de você</SectionTitle>
-            {decisions.map((d) => (
-              <div key={d.n} className="flex gap-3 items-start py-[11px] border-b border-line2">
-                <div className="w-6 h-6 rounded-lg bg-primary text-white font-extrabold text-[12px] flex items-center justify-center flex-shrink-0">
-                  {d.n}
-                </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-[12.5px]">{d.desc}</div>
-                  <div className="text-[11px] text-inkSoft font-semibold mt-[2px]">{d.sub}</div>
-                </div>
+            {decisions.length === 0 ? (
+              <div className="text-[12px] text-inkMute font-medium py-2 leading-[1.5]">
+                Nenhuma decisão pendente no seu nome. As tarefas cujo responsável é o patrocinador aparecem aqui —
+                defina o responsável na edição da tarefa.
               </div>
-            ))}
+            ) : (
+              decisions.map((d) => (
+                <div key={d.n} className="flex gap-3 items-start py-[11px] border-b border-line2">
+                  <div className="w-6 h-6 rounded-lg bg-primary text-white font-extrabold text-[12px] flex items-center justify-center flex-shrink-0">
+                    {d.n}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-[12.5px]">{d.desc}</div>
+                    <div className="text-[11px] text-inkSoft font-semibold mt-[2px]">{d.sub}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Entregue recentemente */}
