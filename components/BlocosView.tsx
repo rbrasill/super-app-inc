@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PROJECT, STATUSES } from "@/lib/data";
+import { STATUSES } from "@/lib/data";
 import { decorate, getBlocks, getBlocksSummary, type BlockRow } from "@/lib/derive";
 import { useStore } from "@/lib/store";
 import type { Bloco, DecoratedTask } from "@/lib/types";
@@ -13,16 +13,17 @@ const fmtBR = (iso: string) => {
   return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
 };
 
-/** Soma n dias a uma data ISO e devolve outra ISO. */
-const addDaysISO = (iso: string, n: number) => {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+/** Dias inclusivos entre duas datas ISO (0 se faltar alguma). */
+const spanDaysOf = (start: string, end: string) => {
+  if (!start || !end) return 0;
+  const a = new Date(start + "T00:00:00").getTime();
+  const b = new Date(end + "T00:00:00").getTime();
+  return Math.round((b - a) / 86400000) + 1;
 };
 
 /**
- * Cartão único do período: tagline da estratégia + resumo objetivo
- * (bifes, dias alocados, encaixe) + a linha do tempo clicável.
+ * Cartão único do período: tagline da estratégia + total de dias somado dos
+ * bifes, o intervalo de datas e a linha do tempo clicável.
  */
 function PeriodCard({
   rows,
@@ -33,10 +34,10 @@ function PeriodCard({
   summary: ReturnType<typeof getBlocksSummary>;
   onPick: (id: string) => void;
 }) {
-  const ticks = Array.from({ length: Math.floor(PROJECT.totalDays / 7) }, (_, i) => (i + 1) * 7).filter(
-    (d) => d < PROJECT.totalDays
-  );
-  const periodEnd = addDaysISO(PROJECT.startDate, PROJECT.totalDays - 1);
+  const span = spanDaysOf(summary.startDate, summary.endDate);
+  const hasRange = span > 0;
+  const ticks =
+    span > 7 ? Array.from({ length: Math.floor(span / 7) }, (_, i) => (i + 1) * 7).filter((d) => d < span) : [];
 
   return (
     <div className="bg-panel border border-line rounded-2xl p-5 relative overflow-hidden">
@@ -48,18 +49,12 @@ function PeriodCard({
 
       <div className="flex items-center gap-3 flex-wrap mb-4">
         <span className="font-head text-[17px] font-extrabold tracking-[-0.02em] text-inkDark">
-          Encaixe nos {summary.totalDays} dias
+          Total de {summary.totalDays} {summary.totalDays === 1 ? "dia" : "dias"}
         </span>
         <div className="flex-1" />
         <span className="text-[12px] font-bold text-inkSoft">
-          {rows.length} {rows.length === 1 ? "bife" : "bifes"} · {summary.allocatedDays}d de {summary.totalDays}d
-          alocados
-        </span>
-        <span
-          className="text-[11px] font-extrabold px-[10px] py-[4px] rounded-[20px]"
-          style={{ background: summary.fitColor + "18", color: summary.fitColor }}
-        >
-          {summary.fitLabel}
+          {rows.length} {rows.length === 1 ? "bife" : "bifes"}
+          {hasRange ? ` · ${fmtBR(summary.startDate)} → ${fmtBR(summary.endDate)}` : ""}
         </span>
       </div>
 
@@ -69,7 +64,7 @@ function PeriodCard({
           <div
             key={d}
             className="absolute top-0 bottom-0 w-px bg-panel/70"
-            style={{ left: `${(d / PROJECT.totalDays) * 100}%` }}
+            style={{ left: `${(d / span) * 100}%` }}
           />
         ))}
         {rows.map((r) => (
@@ -87,10 +82,12 @@ function PeriodCard({
         ))}
       </div>
 
-      <div className="flex justify-between mt-2 text-[10px] font-bold text-inkMute">
-        <span>{fmtBR(PROJECT.startDate)}</span>
-        <span>{fmtBR(periodEnd)}</span>
-      </div>
+      {hasRange && (
+        <div className="flex justify-between mt-2 text-[10px] font-bold text-inkMute">
+          <span>{fmtBR(summary.startDate)}</span>
+          <span>{fmtBR(summary.endDate)}</span>
+        </div>
+      )}
     </div>
   );
 }

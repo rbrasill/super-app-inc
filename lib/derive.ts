@@ -194,12 +194,12 @@ export interface BlockRow {
 }
 
 export interface BlocksSummary {
+  /** Soma das durações (em dias) de todos os bifes. */
   totalDays: number;
-  allocatedDays: number;
-  /** Diferença entre o alocado e o período (0 = encaixe perfeito). */
-  overflowDays: number;
-  fitLabel: string;
-  fitColor: string;
+  /** Menor data de início entre os bifes ("" se nenhum tem data). */
+  startDate: string;
+  /** Maior data de fim entre os bifes ("" se nenhum tem data). */
+  endDate: string;
 }
 
 /** Ordena os bifes cronologicamente: por início, depois fim; sem data vai ao fim. */
@@ -213,8 +213,26 @@ function chronological(blocks: Bloco[]): Bloco[] {
   });
 }
 
+/**
+ * Janela da timeline: do primeiro início ao último fim entre os bifes. Sem
+ * datas, cai no período do projeto (fallback). `spanDays` é inclusivo.
+ */
+function blocksWindow(blocks: Bloco[], project = PROJECT): { start: number; spanDays: number } {
+  const times: number[] = [];
+  for (const b of blocks) {
+    const s = toTime(b.start);
+    const e = toTime(b.end);
+    if (s !== null) times.push(s);
+    if (e !== null) times.push(e);
+  }
+  if (!times.length) return { start: toTime(project.startDate) ?? 0, spanDays: project.totalDays };
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+  return { start: min, spanDays: Math.max(1, Math.round((max - min) / DAY_MS) + 1) };
+}
+
 export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): BlockRow[] {
-  const projTime = toTime(project.startDate) ?? 0;
+  const win = blocksWindow(blocks, project);
   return chronological(blocks).map((b, i) => {
     const items = tasks.filter((tk) => tk.blockId === b.id);
     const done = items.filter((tk) => tk.status === "entregue").length;
@@ -239,9 +257,9 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): Bl
     const days = inclusiveDays(b.start, b.end);
     const hasDates = !!(b.start && b.end);
     const aTime = toTime(b.start);
-    const offsetDays = aTime !== null ? Math.round((aTime - projTime) / DAY_MS) : 0;
-    const offset = Math.max(0, Math.min(offsetDays, project.totalDays));
-    const width = Math.max(0, Math.min(days, project.totalDays - offset));
+    const offsetDays = aTime !== null ? Math.round((aTime - win.start) / DAY_MS) : 0;
+    const offset = Math.max(0, Math.min(offsetDays, win.spanDays));
+    const width = Math.max(0, Math.min(days, win.spanDays - offset));
 
     // Distribuição por área dentro do bloco.
     const areaSegs: BlockAreaSeg[] = AREAS.map((a) => {
@@ -264,8 +282,8 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): Bl
       bife: i + 1,
       days,
       daysLabel: `${days}d`,
-      offsetPct: (offset / project.totalDays) * 100 + "%",
-      widthPct: (width / project.totalDays) * 100 + "%",
+      offsetPct: (offset / win.spanDays) * 100 + "%",
+      widthPct: (width / win.spanDays) * 100 + "%",
       dateRange: hasDates ? `${fmt(b.start)} → ${fmt(b.end)}` : "Sem datas",
       hasDates,
       count: items.length,
@@ -283,24 +301,14 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): Bl
   });
 }
 
-export function getBlocksSummary(blocks: Bloco[], project = PROJECT): BlocksSummary {
-  const allocatedDays = blocks.reduce((s, b) => s + inclusiveDays(b.start, b.end), 0);
-  const overflowDays = allocatedDays - project.totalDays;
-  let fitLabel = "Encaixe perfeito nos " + project.totalDays + " dias";
-  let fitColor = "#10B981";
-  if (overflowDays > 0) {
-    fitLabel = `${overflowDays} dia(s) além do período`;
-    fitColor = "#EF4444";
-  } else if (overflowDays < 0) {
-    fitLabel = `${Math.abs(overflowDays)} dia(s) livre(s) no período`;
-    fitColor = "#F59E0B";
-  }
+export function getBlocksSummary(blocks: Bloco[]): BlocksSummary {
+  const totalDays = blocks.reduce((s, b) => s + inclusiveDays(b.start, b.end), 0);
+  const starts = blocks.map((b) => b.start).filter(Boolean).sort();
+  const ends = blocks.map((b) => b.end).filter(Boolean).sort();
   return {
-    totalDays: project.totalDays,
-    allocatedDays,
-    overflowDays,
-    fitLabel,
-    fitColor,
+    totalDays,
+    startDate: starts[0] ?? "",
+    endDate: ends[ends.length - 1] ?? "",
   };
 }
 
