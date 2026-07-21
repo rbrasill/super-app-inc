@@ -6,8 +6,18 @@ import type { View } from "@/lib/types";
 import { ExportIcon, PlusIcon, SearchIcon } from "./icons";
 
 export default function Topbar({ title, sub, view }: { title: string; sub: string; view: View }) {
-  const { search, setSearch, tasks, filteredTasks, blocks, hasActiveFilters, openNew, openNewBlock, openNewPerson } =
-    useStore();
+  const {
+    search,
+    setSearch,
+    tasks,
+    filteredTasks,
+    blocks,
+    hasActiveFilters,
+    openNew,
+    openNewBlock,
+    openNewPerson,
+    dataSource,
+  } = useStore();
 
   const handleExport = () => {
     exportTasksCsv(hasActiveFilters ? filteredTasks : tasks, blocks);
@@ -20,8 +30,11 @@ export default function Topbar({ title, sub, view }: { title: string; sub: strin
   return (
     <div className="px-[34px] pt-6 pb-5 flex items-center gap-[18px] flex-wrap border-b border-line bg-bg">
       <div className="min-w-0">
-        <div className="font-head text-[25px] font-extrabold tracking-[-0.03em] leading-[1.1] text-inkDark">
-          {title}
+        <div className="flex items-center gap-[10px]">
+          <div className="font-head text-[25px] font-extrabold tracking-[-0.03em] leading-[1.1] text-inkDark">
+            {title}
+          </div>
+          {dataSource !== "loading" && <ConnBadge live={dataSource === "supabase"} />}
         </div>
         <div className="text-[12.5px] text-inkSoft font-medium mt-[3px]">{sub}</div>
       </div>
@@ -89,5 +102,28 @@ export default function Topbar({ title, sub, view }: { title: string; sub: strin
         </button>
       )}
     </div>
+  );
+}
+
+/** Selo de conexão: verde = banco ao vivo (Supabase); âmbar = modo demo. */
+function ConnBadge({ live }: { live: boolean }) {
+  return (
+    <span
+      title={
+        live
+          ? "Conectado ao Supabase — suas alterações são salvas no banco."
+          : "Modo demo — dados em memória; nada é salvo. Configure as variáveis NEXT_PUBLIC_SUPABASE_* para persistir."
+      }
+      className={`inline-flex items-center gap-[6px] rounded-full px-[10px] py-[3px] text-[11px] font-bold border cursor-default select-none ${
+        live
+          ? "bg-success/10 text-success border-success/25"
+          : "bg-warning/10 text-warning border-warning/30"
+      }`}
+    >
+      <span
+        className={`w-[7px] h-[7px] rounded-full ${live ? "bg-success animate-pulse" : "bg-warning"}`}
+      />
+      {live ? "Ao vivo" : "Modo demo"}
+    </span>
   );
 }

@@ -47,18 +47,28 @@ export interface PersonInput {
 
 export type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
+/**
+ * De onde vêm/vão os dados:
+ * - `loading`  : ainda carregando do Supabase na montagem.
+ * - `supabase` : conectado ao banco ao vivo (persiste alterações).
+ * - `demo`     : sem env do Supabase, ou a carga falhou → dados estáticos em
+ *                memória (nada é salvo). Serve para o app nunca ficar vazio.
+ */
+export type DataSource = "loading" | "supabase" | "demo";
+
 /** Gera um id único (usado em modo offline e como chave dos inserts). */
 function makeId(prefix: string): string {
   const rnd = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
   return `${prefix}_${rnd.replace(/-/g, "").slice(0, 12)}`;
 }
 
-/** Dispara uma escrita no Supabase sem bloquear a UI; loga erro se houver. */
-function persist(p: PromiseLike<{ error: unknown }> | undefined) {
-  if (!p) return;
-  Promise.resolve(p).then(({ error }) => {
-    if (error) console.error("[supabase]", error);
-  });
+/** Extrai uma mensagem curta e legível de um erro do supabase-js. */
+function errText(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as { message?: string; details?: string; hint?: string };
+    return e.message || e.details || e.hint || "erro desconhecido";
+  }
+  return String(err);
 }
 
 interface StoreValue {
@@ -67,6 +77,11 @@ interface StoreValue {
   blocks: Bloco[];
   people: Person[];
   loading: boolean;
+  /** Origem dos dados: banco ao vivo (`supabase`) ou memória (`demo`). */
+  dataSource: DataSource;
+  /** Mensagem da última gravação que falhou (null = tudo ok). */
+  saveError: string | null;
+  clearSaveError: () => void;
   search: string;
   setSearch: (v: string) => void;
   areaFilter: AreaFilter;
@@ -116,6 +131,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     isSupabaseEnabled ? [] : PEOPLE.map((p) => ({ ...p }))
   );
   const [loading, setLoading] = useState(isSupabaseEnabled);
+  const [dataSource, setDataSource] = useState<DataSource>(
+    isSupabaseEnabled ? "loading" : "demo"
+  );
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const clearSaveError = () => setSaveError(null);
+
+  /** Dispara uma escrita no Supabase sem bloquear a UI; registra falhas. */
+  const persist = (p: PromiseLike<{ error: unknown }> | undefined) => {
+    if (!p) return;
+    Promise.resolve(p).then(({ error }) => {
+      if (error) {
+        console.error("[supabase]", error);
+        setSaveError(errText(error));
+      }
+    });
+  };
 
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState<AreaFilter>("all");
@@ -134,6 +165,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setTasks([...TASKS]);
       setBlocks(BLOCKS.map((x) => ({ ...x })));
       setPeople(PEOPLE.map((x) => ({ ...x })));
+      setDataSource("demo");
     };
     const withTimeout = <T,>(pr: PromiseLike<T>, ms: number): Promise<T> =>
       Promise.race([
@@ -155,6 +187,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setTasks((t.data ?? []).map((r) => taskFromRow(r as never)));
         setBlocks((b.data ?? []).map((r) => blockFromRow(r as never)));
         setPeople((p.data ?? []).map((r) => personFromRow(r as never)));
+        setDataSource("supabase");
       } catch (e) {
         if (!alive) return;
         // Rede/consulta falhou: cai nos dados estáticos para o app não ficar vazio.
@@ -312,6 +345,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     blocks,
     people,
     loading,
+    dataSource,
+    saveError,
+    clearSaveError,
     search,
     setSearch,
     areaFilter,
