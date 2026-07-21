@@ -138,46 +138,69 @@ function MilestoneCard({ todayIso }: { todayIso: string }) {
 }
 
 /**
- * Indicador circular de contagem regressiva até a entrega do projeto (fim do
- * último bife). O anel mostra o % do plano já decorrido; as cores seguem um
- * degradê teal → azul → violeta (reaproveita tons já usados em AV_PALETTE).
- * Fundo claro para se integrar ao card de resumo executivo.
+ * Paleta dos cards de indicação (PDF paleta_cores): rampa magenta → vinho
+ * (#FF0084 · #D11174 · #A22365 · #743455) + cinzas #454545/#494B4D e fundo
+ * #FAFAFA.
  */
-function CountdownRing({ daysLeft, progressPct }: { daysLeft: number; progressPct: number }) {
-  const late = daysLeft < 0;
-  const n = Math.abs(daysLeft);
-  const topLabel = late ? "ATRASO" : "FALTAM";
-  const bottomLabel = n === 1 ? "DIA" : "DIAS";
+const RING = {
+  bg: "#FAFAFA",
+  track: "rgba(69,69,69,0.10)",
+  number: "#454545",
+  caption: "#494B4D",
+};
 
+/**
+ * Card de indicador circular genérico: anel de progresso em degradê com
+ * rótulo em cima/embaixo do número e legenda abaixo do anel.
+ */
+function RingCard({
+  gradId,
+  topLabel,
+  value,
+  bottomLabel,
+  caption,
+  progressPct,
+  from,
+  to,
+  accent,
+  title,
+}: {
+  gradId: string;
+  topLabel: string;
+  value: string;
+  bottomLabel: string;
+  caption: string;
+  progressPct: number;
+  from: string;
+  to: string;
+  accent: string;
+  title: string;
+}) {
   const r = 42;
   const circumference = 2 * Math.PI * r;
   const offset = circumference * (1 - Math.max(0, Math.min(100, progressPct)) / 100);
 
   return (
     <div
-      className="flex-shrink-0 w-[150px] flex flex-col items-center justify-center gap-[8px] rounded-[18px] px-4 py-[18px] bg-panel border border-line shadow-soft"
-      title={
-        late
-          ? `${n} ${bottomLabel.toLowerCase()} de atraso na entrega`
-          : `${n} ${bottomLabel.toLowerCase()} para a entrega do app`
-      }
+      className="flex-shrink-0 w-[150px] flex flex-col items-center justify-center gap-[8px] rounded-[18px] px-4 py-[18px] border border-line shadow-soft"
+      style={{ background: RING.bg }}
+      title={title}
     >
       <div className="relative w-[76px] h-[76px]">
         <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
           <defs>
-            <linearGradient id="countdownGrad" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="#14B8A6" />
-              <stop offset="50%" stopColor="#0EA5E9" />
-              <stop offset="100%" stopColor="#8B5CF6" />
+            <linearGradient id={gradId} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor={from} />
+              <stop offset="100%" stopColor={to} />
             </linearGradient>
           </defs>
-          <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(29,32,38,0.10)" strokeWidth="9" />
+          <circle cx="50" cy="50" r={r} fill="none" stroke={RING.track} strokeWidth="9" />
           <circle
             cx="50"
             cy="50"
             r={r}
             fill="none"
-            stroke="url(#countdownGrad)"
+            stroke={`url(#${gradId})`}
             strokeWidth="9"
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -185,19 +208,65 @@ function CountdownRing({ daysLeft, progressPct }: { daysLeft: number; progressPc
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-[1px]">
-          <span className="text-[7px] font-extrabold uppercase tracking-[0.5px]" style={{ color: "#0D9488" }}>
+          <span className="text-[7px] font-extrabold uppercase tracking-[0.5px]" style={{ color: accent }}>
             {topLabel}
           </span>
-          <span className="text-[22px] font-black text-inkDark leading-none">{n}</span>
-          <span className="text-[7px] font-extrabold uppercase tracking-[0.5px]" style={{ color: "#0D9488" }}>
+          <span className="text-[21px] font-black leading-none" style={{ color: RING.number }}>
+            {value}
+          </span>
+          <span className="text-[7px] font-extrabold uppercase tracking-[0.5px]" style={{ color: accent }}>
             {bottomLabel}
           </span>
         </div>
       </div>
-      <div className="text-[9px] font-semibold text-inkSoft text-center leading-[1.3] max-w-[92px]">
-        {late ? "de atraso na entrega." : "para a entrega do app."}
+      <div
+        className="text-[9px] font-semibold text-center leading-[1.3] max-w-[100px]"
+        style={{ color: RING.caption }}
+      >
+        {caption}
       </div>
     </div>
+  );
+}
+
+/** Contagem regressiva até a entrega (fim do último bife). */
+function CountdownRing({ daysLeft, progressPct }: { daysLeft: number; progressPct: number }) {
+  const late = daysLeft < 0;
+  const n = Math.abs(daysLeft);
+  return (
+    <RingCard
+      gradId="ringDias"
+      topLabel={late ? "ATRASO" : "FALTAM"}
+      value={String(n)}
+      bottomLabel={n === 1 ? "DIA" : "DIAS"}
+      caption={late ? "de atraso na entrega." : "para a entrega do app."}
+      progressPct={progressPct}
+      from="#D11174"
+      to="#FF0084"
+      accent="#D11174"
+      title={late ? `${n} dia(s) de atraso na entrega` : `${n} dia(s) para a entrega do app`}
+    />
+  );
+}
+
+/**
+ * Conclusão do projeto: % de tarefas entregues sobre o total ATUAL do quadro —
+ * recalcula sozinho quando tarefas são criadas ou excluídas.
+ */
+function ConclusionRing({ pct }: { pct: number }) {
+  return (
+    <RingCard
+      gradId="ringPct"
+      topLabel="PROJETO"
+      value={`${pct}%`}
+      bottomLabel="Concluído"
+      caption="das tarefas do quadro entregues."
+      progressPct={pct}
+      from="#743455"
+      to="#A22365"
+      accent="#A22365"
+      title={`${pct}% das tarefas atuais do projeto estão entregues`}
+    />
   );
 }
 
@@ -236,10 +305,11 @@ export default function SponsorView() {
           </div>
         </div>
 
-        {/* Indicador de contagem regressiva (ao lado do card) */}
+        {/* Indicadores ao lado do card: dias p/ entrega + % de conclusão */}
         {heroMilestone && heroMilestone.daysLeft !== null && (
           <CountdownRing daysLeft={heroMilestone.daysLeft} progressPct={heroMilestone.progressPct ?? 0} />
         )}
+        <ConclusionRing pct={kpis.pct} />
       </div>
 
       {/* Marcos do projeto (linha do tempo) */}
