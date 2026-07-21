@@ -161,12 +161,8 @@ export default function SponsorView() {
         <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-primary">
           Resumo executivo · jul/26
         </div>
-        <div className="font-head text-[24px] font-extrabold mt-2 mb-[6px] text-inkDark tracking-[-0.02em]">
+        <div className="font-head text-[24px] font-extrabold mt-2 text-inkDark tracking-[-0.02em]">
           Meu INC App · andamento geral
-        </div>
-        <div className="text-[13px] text-inkSoft font-medium max-w-[600px] leading-[1.5]">
-          Visão de uma página para o patrocinador: onde o projeto está, o que já saiu e o que aguarda decisão. Sem
-          detalhe operacional — esse fica no quadro do time.
         </div>
       </div>
 

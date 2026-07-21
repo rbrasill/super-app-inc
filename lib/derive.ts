@@ -371,6 +371,10 @@ export interface MilestoneLine {
   daysLeft: number | null;
   /** Tarefas com fim DEPOIS da entrega prevista (desalinhamento do plano). */
   tasksBeyond: number;
+  /** Duração total do plano em dias (do primeiro início ao fim da entrega). */
+  totalDays: number;
+  /** % do plano já decorrido até hoje (0–100, sem extrapolar); null sem "hoje". */
+  progressPct: number | null;
 }
 
 /**
@@ -388,6 +392,8 @@ export function getMilestones(tasks: Task[], blocks: Bloco[], todayIso: string):
     todayPct: null,
     daysLeft: null,
     tasksBeyond: 0,
+    totalDays: 0,
+    progressPct: null,
   };
   if (!dated.length) return empty;
 
@@ -426,6 +432,8 @@ export function getMilestones(tasks: Task[], blocks: Bloco[], todayIso: string):
     todayPct: todayT !== null && todayT >= startT && todayT <= endT ? pct(todayT) : null,
     daysLeft,
     tasksBeyond: tasks.filter((tk) => tk.end && tk.end > deliveryDate).length,
+    totalDays: Math.round(span / DAY_MS) + 1,
+    progressPct: todayT !== null ? Math.max(0, Math.min(100, ((todayT - startT) / span) * 100)) : null,
   };
 }
 
