@@ -156,15 +156,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const clearSaveError = () => setSaveError(null);
 
+  // Em modo demo (sem env OU fallback após falha de carga), não tenta gravar:
+  // a tela mostra os dados estáticos, não os do banco — gravar criaria estado
+  // misturado no banco e toasts de erro enganosos com a rede fora.
+  const canPersist = dataSource === "supabase";
+
   /** Dispara uma escrita no Supabase sem bloquear a UI; registra falhas. */
   const persist = (p: PromiseLike<{ error: unknown }> | undefined) => {
-    if (!p) return;
-    Promise.resolve(p).then(({ error }) => {
-      if (error) {
-        console.error("[supabase]", error);
-        setSaveError(errText(error));
+    if (!p || !canPersist) return;
+    Promise.resolve(p).then(
+      ({ error }) => {
+        if (error) {
+          console.error("[supabase]", error);
+          setSaveError(errText(error));
+        }
+      },
+      (err) => {
+        console.error("[supabase]", err);
+        setSaveError(errText(err));
       }
-    });
+    );
   };
 
   const [search, setSearch] = useState("");

@@ -57,6 +57,8 @@ no ambiente em que você está testando).
     pessoas) atualiza a tela na hora e persiste no Supabase em segundo plano.
   - **Fallback:** se não houver env, ou a carga falhar/estourar 8s, o app cai
     nos dados estáticos de `lib/data.ts` (modo demo) — nunca fica travado.
+    Em modo demo o app **não tenta gravar** no banco (a tela não está
+    mostrando os dados do banco); as edições ficam só em memória.
 
 ## RLS (segurança)
 
