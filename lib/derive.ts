@@ -519,3 +519,44 @@ export function getPeople(people: Person[], areas: Area[] = AREAS): PersonRow[] 
     };
   });
 }
+
+export interface PersonProgress {
+  id: string;
+  name: string;
+  initials: string;
+  avBg: string;
+  avColor: string;
+  /** Tarefas atribuídas / entregues (recalcula ao criar/excluir tarefas). */
+  total: number;
+  done: number;
+  pct: number;
+}
+
+/**
+ * Conclusão de tarefas por pessoa: % de tarefas entregues sobre as atribuídas
+ * (campo `who` = nome da pessoa). Só inclui quem tem ao menos uma tarefa;
+ * ordena por % desc (desempate por volume). Recalcula sozinho conforme as
+ * tarefas mudam.
+ */
+export function getPeopleProgress(tasks: Task[], people: Person[]): PersonProgress[] {
+  return people
+    .map((p) => {
+      const name = p.name.trim();
+      const mine = name ? tasks.filter((tk) => tk.who.trim() === name) : [];
+      const total = mine.length;
+      const done = mine.filter((tk) => tk.status === "entregue").length;
+      const av = whoAvatar(p.name);
+      return {
+        id: p.id,
+        name: p.name,
+        initials: name ? name[0].toUpperCase() : "?",
+        avBg: av.avBg,
+        avColor: av.avColor,
+        total,
+        done,
+        pct: total ? Math.round((done / total) * 100) : 0,
+      };
+    })
+    .filter((p) => p.total > 0)
+    .sort((a, b) => b.pct - a.pct || b.total - a.total);
+}
