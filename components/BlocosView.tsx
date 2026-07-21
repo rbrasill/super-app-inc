@@ -13,6 +13,12 @@ const fmtBR = (iso: string) => {
   return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
 };
 
+/** Formata ISO (yyyy-mm-dd) como dd/mm/aaaa. */
+const fmtBRFull = (iso: string) => {
+  const p = iso.split("-");
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
+};
+
 /** Dias inclusivos entre duas datas ISO (0 se faltar alguma). */
 const spanDaysOf = (start: string, end: string) => {
   if (!start || !end) return 0;
@@ -132,16 +138,25 @@ function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => voi
         </div>
 
         <h3 className="font-head text-[16px] font-extrabold tracking-[-0.02em] text-inkDark">{row.name}</h3>
-        <div className="text-[11.5px] font-semibold text-inkLabel mt-[2px]">
-          {row.hasDates ? `${row.dateRange} · ${row.days} ${row.days === 1 ? "dia" : "dias"}` : "Sem datas definidas"}
-        </div>
 
-        <div className="mt-3">
-          <div className="text-[10px] font-extrabold uppercase tracking-[0.5px] text-inkMute mb-1">
-            O que entra neste bife
+        {row.hasDates ? (
+          <div className="mt-[10px] flex items-center flex-wrap gap-2">
+            <span className="inline-flex items-center gap-[7px] bg-chip rounded-[10px] px-[10px] py-[6px] text-[12px] font-bold text-inkMid">
+              <CalendarIcon style={{ stroke: "#6E7485" }} />
+              {fmtBRFull(row.start)}
+              <span className="text-inkMute font-medium">→</span>
+              {fmtBRFull(row.end)}
+            </span>
+            <span className="text-[11px] font-extrabold text-inkSoft">
+              {row.days} {row.days === 1 ? "dia" : "dias"}
+            </span>
           </div>
-          <div className="text-[12px] text-inkSoft font-medium leading-[1.5] line-clamp-2">{row.theme}</div>
-        </div>
+        ) : (
+          <div className="mt-[10px] inline-flex items-center gap-[7px] bg-chip rounded-[10px] px-[10px] py-[6px] text-[12px] font-semibold text-inkMute">
+            <CalendarIcon style={{ stroke: "#A1A5B3" }} />
+            Sem datas definidas
+          </div>
+        )}
       </div>
 
       {/* Andamento */}
@@ -210,9 +225,9 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
       {/* Voltar */}
       <button
         onClick={onBack}
-        className="self-start inline-flex items-center gap-[7px] text-[12.5px] font-bold text-inkSoft hover:text-primary transition-colors cursor-pointer"
+        className="self-start inline-flex items-center gap-[8px] px-[15px] py-[10px] rounded-[12px] text-[13px] font-extrabold cursor-pointer border border-line bg-panel text-inkSoft shadow-soft hover:bg-chip hover:text-ink hover:border-inputLine transition-colors"
       >
-        <span className="text-[15px] leading-none">←</span> Voltar para os bifes
+        <span className="text-[16px] leading-none">←</span> Voltar para os bifes
       </button>
 
       {/* Cabeçalho do bife (identificação + andamento) */}
@@ -231,7 +246,9 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
           )}
           <span className="inline-flex items-center gap-[6px] text-[12px] font-bold text-inkSoft">
             <CalendarIcon style={{ stroke: "#A1A5B3" }} />
-            {row.hasDates ? `${row.dateRange} · ${row.days} ${row.days === 1 ? "dia" : "dias"}` : "Sem datas definidas"}
+            {row.hasDates
+              ? `${fmtBRFull(row.start)} → ${fmtBRFull(row.end)} · ${row.days} ${row.days === 1 ? "dia" : "dias"}`
+              : "Sem datas definidas"}
           </span>
           <button
             onClick={() => openBlock(row.id)}

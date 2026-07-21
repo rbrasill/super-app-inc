@@ -204,6 +204,9 @@ export interface BlockRow {
   widthPct: string;
   /** Faixa de datas do bife (dd/mm → dd/mm) ou "Sem datas". */
   dateRange: string;
+  /** Datas ISO cruas do bife (para formatação livre no componente). */
+  start: string;
+  end: string;
   /** true quando início e fim estão definidos. */
   hasDates: boolean;
   /** Progresso / semáforo. */
@@ -313,6 +316,8 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], areas: Area[] = AREAS,
       offsetPct: (offset / win.spanDays) * 100 + "%",
       widthPct: (width / win.spanDays) * 100 + "%",
       dateRange: hasDates ? `${fmt(b.start)} → ${fmt(b.end)}` : "Sem datas",
+      start: b.start,
+      end: b.end,
       hasDates,
       count: items.length,
       done,
