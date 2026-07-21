@@ -383,7 +383,7 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
 }
 
 export default function BlocosView() {
-  const { tasks, blocks, areas, phases, openNewBlock, openNewPhase, openPhase } = useStore();
+  const { tasks, blocks, areas, phases, openNewBlock } = useStore();
   const rows = getBlocks(tasks, blocks, areas, phases);
   const summary = getBlocksSummary(blocks);
   const orphanCount = tasks.filter((tk) => !blocks.some((b) => b.id === tk.blockId)).length;
@@ -434,57 +434,6 @@ export default function BlocosView() {
           {orphanCount} tarefa(s) sem bloco — atribua um bloco a elas pelo Quadro de execução.
         </div>
       )}
-
-      {/* ===== Fases do roadmap ===== */}
-      <div>
-        <div className="flex items-center gap-3 mb-3">
-          <div className="text-[12.5px] font-extrabold uppercase tracking-[0.5px] text-inkMid flex items-center gap-[9px]">
-            <span className="w-[3px] h-[15px] rounded-sm bg-primary" /> Fases do roadmap
-          </div>
-          <div className="flex-1" />
-          <button
-            onClick={openNewPhase}
-            className="px-[13px] py-[8px] rounded-[11px] text-[12px] font-extrabold cursor-pointer border-none bg-primary text-white inline-flex items-center gap-[6px] shadow-btn transition-[filter] hover:brightness-[1.06]"
-          >
-            <PlusIcon />
-            Adicionar fase
-          </button>
-        </div>
-
-        {phases.length === 0 ? (
-          <div className="bg-panel border border-dashed border-line rounded-2xl p-6 text-center text-[12.5px] text-inkMute font-medium">
-            Nenhuma fase cadastrada. As fases organizam os bifes no roadmap (v1.0, v2.0…).
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-3">
-            {phases.map((f) => {
-              const nBlocks = blocks.filter((b) => b.phaseId === f.id).length;
-              return (
-                <div
-                  key={f.id}
-                  onClick={() => openPhase(f.id)}
-                  className="bg-panel border border-line rounded-2xl px-4 py-[14px] flex items-center gap-3 cursor-pointer transition-[box-shadow,transform] hover:-translate-y-[2px] hover:shadow-cardHover group"
-                >
-                  <span className="px-[9px] py-[5px] rounded-[9px] bg-softOrange text-primary text-[12px] font-extrabold flex-shrink-0">
-                    {f.short || "—"}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-head text-[13px] font-extrabold text-inkDark truncate" title={f.name}>
-                      {f.name}
-                    </div>
-                    <div className="text-[11px] font-semibold text-inkFaint mt-[1px]">
-                      {nBlocks} {nBlocks === 1 ? "bife" : "bifes"}
-                    </div>
-                  </div>
-                  <span className="text-[11.5px] font-bold text-inkFaint group-hover:text-primary transition-colors">
-                    Editar
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
