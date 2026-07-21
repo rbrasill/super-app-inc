@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { STATUSES } from "@/lib/data";
-import { decorate, getBlocks, getBlocksSummary, type BlockRow } from "@/lib/derive";
+import { areaMapOf, decorate, getBlocks, getBlocksSummary, type BlockRow } from "@/lib/derive";
 import { useStore } from "@/lib/store";
 import type { Bloco, DecoratedTask } from "@/lib/types";
 import { CalendarIcon, OxIcon, PlusIcon, WarnIcon } from "./icons";
@@ -174,7 +174,7 @@ function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => voi
 
 /** Detalhe do bife — inline (troca o conteúdo da própria tela, sem overlay). */
 function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
-  const { tasks, blocks, openBlock, openTask } = useStore();
+  const { tasks, blocks, areas, openBlock, openTask } = useStore();
 
   // Ao abrir um bife, sobe a área de conteúdo para o topo (mostra o "Voltar").
   useEffect(() => {
@@ -182,7 +182,10 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
   }, [row.id]);
 
   const blockMap: Record<string, Bloco> = Object.fromEntries(blocks.map((b) => [b.id, b]));
-  const items: DecoratedTask[] = tasks.filter((tk) => tk.blockId === row.id).map((tk) => decorate(tk, blockMap));
+  const areaMap = areaMapOf(areas);
+  const items: DecoratedTask[] = tasks
+    .filter((tk) => tk.blockId === row.id)
+    .map((tk) => decorate(tk, blockMap, areaMap));
 
   const kEntregue = items.filter((t) => t.status === "entregue").length;
   const kAndamento = items.filter((t) => ["execucao", "validacao", "pronto"].includes(t.status)).length;
@@ -369,8 +372,8 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
 }
 
 export default function BlocosView() {
-  const { tasks, blocks, openNewBlock } = useStore();
-  const rows = getBlocks(tasks, blocks);
+  const { tasks, blocks, areas, openNewBlock } = useStore();
+  const rows = getBlocks(tasks, blocks, areas);
   const summary = getBlocksSummary(blocks);
   const orphanCount = tasks.filter((tk) => !blocks.some((b) => b.id === tk.blockId)).length;
 

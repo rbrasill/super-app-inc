@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Bloco, Person, Task } from "./types";
+import type { Area, Bloco, Person, Task } from "./types";
 
 /**
  * Cliente Supabase (browser). As chaves vêm de variáveis de ambiente públicas
@@ -46,6 +46,14 @@ interface PersonRowDb {
   name: string;
   role: string;
   responsibility: string;
+  area_id: string | null;
+  sort_order: number;
+}
+
+interface AreaRowDb {
+  id: string;
+  name: string;
+  color: string;
   sort_order: number;
 }
 
@@ -100,11 +108,25 @@ export const personFromRow = (r: PersonRowDb): Person => ({
   name: r.name,
   role: r.role,
   resp: r.responsibility,
+  area: r.area_id ?? "",
 });
 
 export const personToRow = (p: Omit<Person, "id">, sortOrder?: number) => ({
   name: p.name,
   role: p.role,
   responsibility: p.resp,
+  area_id: p.area || null,
+  ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
+});
+
+export const areaFromRow = (r: AreaRowDb): Area => ({
+  id: r.id,
+  name: r.name,
+  color: r.color,
+});
+
+export const areaToRow = (a: Omit<Area, "id">, sortOrder?: number) => ({
+  name: a.name,
+  color: a.color,
   ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
 });

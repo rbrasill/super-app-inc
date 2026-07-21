@@ -1,7 +1,6 @@
 import { AREAS, BLOCKS, PRIO, STATUSES } from "./data";
-import type { Bloco, Task } from "./types";
+import type { Area, Bloco, Task } from "./types";
 
-const areaName = (id: string) => AREAS.find((a) => a.id === id)?.name ?? id;
 const statusName = (id: string) => STATUSES.find((s) => s.id === id)?.name ?? id;
 
 function escapeCell(value: string): string {
@@ -14,9 +13,11 @@ function escapeCell(value: string): string {
 export function exportTasksCsv(
   tasks: Task[],
   blocks: Bloco[] = BLOCKS,
+  areas: Area[] = AREAS,
   filename = "meu-inc-app-tarefas.csv"
 ): void {
   const blockName = (id: string) => blocks.find((b) => b.id === id)?.name ?? "Sem bloco";
+  const areaName = (id: string) => areas.find((a) => a.id === id)?.name ?? id;
   const header = ["Descrição", "Área", "Bloco", "Responsável", "Prioridade", "Status", "Início", "Fim", "Dependência"];
   const rows = tasks.map((tk) => [
     tk.desc,

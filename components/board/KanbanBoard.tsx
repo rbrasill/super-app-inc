@@ -7,8 +7,8 @@ import type { StatusId } from "@/lib/types";
 import TaskCard from "./TaskCard";
 
 export default function KanbanBoard() {
-  const { filteredTasks, blocks, moveTask } = useStore();
-  const board = getBoard(filteredTasks, blocks);
+  const { filteredTasks, blocks, areas, moveTask } = useStore();
+  const board = getBoard(filteredTasks, blocks, areas);
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<StatusId | null>(null);

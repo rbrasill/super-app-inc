@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AREAS, STATUSES } from "@/lib/data";
+import { STATUSES } from "@/lib/data";
 import { useStore, type NewTaskInput } from "@/lib/store";
 import type { AreaId, PriorityId, StatusId, Task } from "@/lib/types";
 import { PlusIcon } from "./icons";
 
 const EMPTY: NewTaskInput = {
   desc: "",
-  area: "dev",
+  area: "",
   blockId: "",
   who: "",
   prio: "media",
@@ -28,7 +28,7 @@ const fieldCls =
   "w-full bg-panel border border-inputLine rounded-[11px] px-[13px] py-[11px] text-[13px] text-ink font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors";
 
 export default function TaskModal() {
-  const { modal, tasks, blocks, people, addTask, updateTask, deleteTask, closeModal } = useStore();
+  const { modal, tasks, blocks, people, areas, addTask, updateTask, deleteTask, closeModal } = useStore();
   const [form, setForm] = useState<NewTaskInput>(EMPTY);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -49,7 +49,9 @@ export default function TaskModal() {
   useEffect(() => {
     if (!modal) return;
     setConfirmDelete(false);
-    setForm(modal.mode === "edit" ? (editing ? toInput(editing) : EMPTY) : EMPTY);
+    // Nova tarefa: default para a primeira área disponível.
+    const empty = { ...EMPTY, area: areas[0]?.id ?? "" };
+    setForm(modal.mode === "edit" ? (editing ? toInput(editing) : empty) : empty);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modal]);
 
@@ -116,7 +118,7 @@ export default function TaskModal() {
             <div>
               <label className={labelCls}>Área</label>
               <select className={fieldCls} value={form.area} onChange={(e) => set("area", e.target.value as AreaId)}>
-                {AREAS.map((a) => (
+                {areas.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>

@@ -4,8 +4,8 @@ import { getGrouped } from "@/lib/derive";
 import { useStore } from "@/lib/store";
 
 export default function GroupedBoard() {
-  const { filteredTasks, blocks, openTask } = useStore();
-  const grouped = getGrouped(filteredTasks, blocks);
+  const { filteredTasks, blocks, areas, openTask } = useStore();
+  const grouped = getGrouped(filteredTasks, blocks, areas);
   return (
     <div className="flex flex-col gap-4 pt-2">
       {grouped.map((g) => (

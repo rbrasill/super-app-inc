@@ -39,6 +39,9 @@ create table public.project (
 );
 create table public.people (
   id text primary key, name text not null, role text not null default '', responsibility text not null default '',
+  -- Área à qual a pessoa está ligada (NULL = sem área; se a área for excluída,
+  -- a pessoa fica sem área automaticamente).
+  area_id text references public.areas(id) on delete set null,
   sort_order smallint not null default 0
 );
 create table public.tasks (
@@ -74,11 +77,12 @@ alter table public.project    enable row level security;
 alter table public.people     enable row level security;
 alter table public.tasks      enable row level security;
 
-create policy "read areas"      on public.areas      for select to anon, authenticated using (true);
 create policy "read statuses"   on public.statuses   for select to anon, authenticated using (true);
 create policy "read priorities" on public.priorities for select to anon, authenticated using (true);
 create policy "read phases"     on public.phases     for select to anon, authenticated using (true);
 
+-- Áreas são gerenciáveis pelo painel (CRUD em Pessoas & papéis).
+create policy "all areas"   on public.areas   for all to anon, authenticated using (true) with check (true);
 create policy "all blocks"  on public.blocks  for all to anon, authenticated using (true) with check (true);
 create policy "all project" on public.project for all to anon, authenticated using (true) with check (true);
 create policy "all people"  on public.people  for all to anon, authenticated using (true) with check (true);

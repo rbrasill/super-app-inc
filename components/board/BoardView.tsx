@@ -1,6 +1,6 @@
 "use client";
 
-import { AREAS, STATUSES } from "@/lib/data";
+import { STATUSES } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import type { AreaId, StatusId, Sub } from "@/lib/types";
 import GroupedBoard from "./GroupedBoard";
@@ -21,6 +21,7 @@ export function BoardControls({ sub, setSub }: { sub: Sub; setSub: (s: Sub) => v
     setStatusFilter,
     blocks,
     people,
+    areas,
     tasks,
     filteredTasks,
     hasActiveFilters,
@@ -62,7 +63,7 @@ export function BoardControls({ sub, setSub }: { sub: Sub; setSub: (s: Sub) => v
           onChange={(e) => setAreaFilter(e.target.value as AreaId | "all")}
         >
           <option value="all">Todas</option>
-          {AREAS.map((a) => (
+          {areas.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
             </option>

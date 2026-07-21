@@ -118,18 +118,18 @@ export const TASKS: Task[] = [
   { id: "t24", desc: "Disponibilizar segunda via de contrato em PDF", area: "dev", blockId: "b2", who: "Rafael Soares", prio: "media", status: "pronto", start: "2026-06-25", end: "2026-07-25", dep: "" },
 ];
 
-/** [nome, papel, responsabilidade] */
-export const PEOPLE_RAW: [string, string, string][] = [
-  ["Gustavo", "Product Owner · dono do quadro", "Decide o quê e a prioridade; mantém as três camadas; monta o report do Edinho."],
-  ["Rafael Brasil", "Planejamento & Estratégia", "Cronograma, dependências, riscos e evolução da estratégia."],
-  ["Diogo", "Tech Lead", "Coordena tecnicamente os devs no dia a dia."],
-  ["Felipe Martins", "Diretor de TI · Patrocinador técnico", "Define tecnologia e estratégia técnica do app."],
-  ["Rafael Soares", "Desenvolvedor", "Executa tarefas de desenvolvimento."],
-  ["Victor", "Desenvolvedor", "Executa tarefas de desenvolvimento."],
-  ["Edinho", "Patrocinador (Sponsor)", "Presidente e investidor; recebe reporte e decisões-chave."],
-  ["A definir", "Representante · Jurídico", "Ponto focal do jurídico no projeto."],
-  ["A definir", "Representante · Cobrança", "Ponto focal de cobrança no projeto."],
-  ["A definir", "Representante · Financeiro", "Ponto focal do financeiro no projeto."],
+/** [nome, papel, responsabilidade, areaId] (área "" = sem área) */
+export const PEOPLE_RAW: [string, string, string, string][] = [
+  ["Gustavo", "Product Owner · dono do quadro", "Decide o quê e a prioridade; mantém as três camadas; monta o report do Edinho.", ""],
+  ["Rafael Brasil", "Planejamento & Estratégia", "Cronograma, dependências, riscos e evolução da estratégia.", ""],
+  ["Diogo", "Tech Lead", "Coordena tecnicamente os devs no dia a dia.", "dev"],
+  ["Felipe Martins", "Diretor de TI · Patrocinador técnico", "Define tecnologia e estratégia técnica do app.", "dev"],
+  ["Rafael Soares", "Desenvolvedor", "Executa tarefas de desenvolvimento.", "dev"],
+  ["Victor", "Desenvolvedor", "Executa tarefas de desenvolvimento.", "dev"],
+  ["Edinho", "Patrocinador (Sponsor)", "Presidente e investidor; recebe reporte e decisões-chave.", ""],
+  ["A definir", "Representante · Jurídico", "Ponto focal do jurídico no projeto.", "juridico"],
+  ["A definir", "Representante · Cobrança", "Ponto focal de cobrança no projeto.", "cobranca"],
+  ["A definir", "Representante · Financeiro", "Ponto focal do financeiro no projeto.", "financeiro"],
 ];
 
 /** Time do projeto (semente editável em runtime). */
@@ -138,6 +138,7 @@ export const PEOPLE: Person[] = PEOPLE_RAW.map((r, i) => ({
   name: r[0],
   role: r[1],
   resp: r[2],
+  area: r[3],
 }));
 
 export const AV_PALETTE = [

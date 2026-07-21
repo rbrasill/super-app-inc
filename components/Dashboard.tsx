@@ -25,12 +25,12 @@ function SectionTitle({
 }
 
 export default function Dashboard() {
-  const { tasks, blocks } = useStore();
+  const { tasks, blocks, areas } = useStore();
   const kpis = getKpis(tasks);
-  const areaDist = getAreaDist(tasks);
+  const areaDist = getAreaDist(tasks, areas);
   const legend = getLegend();
-  const blockRows = getBlocks(tasks, blocks);
-  const risks = getRisks(tasks);
+  const blockRows = getBlocks(tasks, blocks, areas);
+  const risks = getRisks(tasks, areas);
 
   return (
     <div className="pt-[14px]">

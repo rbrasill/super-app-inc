@@ -1,8 +1,10 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { BLOCKS, PEOPLE, TASKS } from "./data";
+import { AREAS, BLOCKS, PEOPLE, TASKS } from "./data";
 import {
+  areaFromRow,
+  areaToRow,
   blockToRow,
   blockFromRow,
   isSupabaseEnabled,
@@ -12,7 +14,7 @@ import {
   taskFromRow,
   taskToRow,
 } from "./supabase";
-import type { AreaId, Bloco, Person, StatusId, Task } from "./types";
+import type { Area, AreaId, Bloco, Person, StatusId, Task } from "./types";
 
 export type AreaFilter = AreaId | "all";
 export type BlockFilter = string | "all";
@@ -44,6 +46,12 @@ export interface PersonInput {
   name: string;
   role: string;
   resp: string;
+  area: string;
+}
+
+export interface AreaInput {
+  name: string;
+  color: string;
 }
 
 export type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
@@ -77,6 +85,7 @@ interface StoreValue {
   filteredTasks: Task[];
   blocks: Bloco[];
   people: Person[];
+  areas: Area[];
   loading: boolean;
   /** Origem dos dados: banco ao vivo (`supabase`) ou memória (`demo`). */
   dataSource: DataSource;
@@ -105,6 +114,9 @@ interface StoreValue {
   addPerson: (input: PersonInput) => void;
   updatePerson: (id: string, patch: PersonInput) => void;
   deletePerson: (id: string) => void;
+  addArea: (input: AreaInput) => void;
+  updateArea: (id: string, patch: AreaInput) => void;
+  deleteArea: (id: string) => void;
   modal: ModalState;
   openNew: () => void;
   openTask: (id: string) => void;
@@ -117,6 +129,10 @@ interface StoreValue {
   openNewPerson: () => void;
   openPerson: (id: string) => void;
   closePersonModal: () => void;
+  areaModal: ModalState;
+  openNewArea: () => void;
+  openArea: (id: string) => void;
+  closeAreaModal: () => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -129,6 +145,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
   const [people, setPeople] = useState<Person[]>(() =>
     isSupabaseEnabled ? [] : PEOPLE.map((p) => ({ ...p }))
+  );
+  const [areas, setAreas] = useState<Area[]>(() =>
+    isSupabaseEnabled ? [] : AREAS.map((a) => ({ ...a }))
   );
   const [loading, setLoading] = useState(isSupabaseEnabled);
   const [dataSource, setDataSource] = useState<DataSource>(
@@ -156,6 +175,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [modal, setModal] = useState<ModalState>(null);
   const [blockModal, setBlockModal] = useState<ModalState>(null);
   const [personModal, setPersonModal] = useState<ModalState>(null);
+  const [areaModal, setAreaModal] = useState<ModalState>(null);
 
   // Carrega do Supabase (se configurado).
   useEffect(() => {
@@ -165,6 +185,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setTasks([...TASKS]);
       setBlocks(BLOCKS.map((x) => ({ ...x })));
       setPeople(PEOPLE.map((x) => ({ ...x })));
+      setAreas(AREAS.map((x) => ({ ...x })));
       setDataSource("demo");
     };
     const withTimeout = <T,>(pr: PromiseLike<T>, ms: number): Promise<T> =>
@@ -174,19 +195,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ]);
     (async () => {
       try {
-        const [t, b, p] = await withTimeout(
+        const [t, b, p, a] = await withTimeout(
           Promise.all([
             supabase.from("tasks").select("*").order("id"),
             supabase.from("blocks").select("*").order("sort_order"),
             supabase.from("people").select("*").order("sort_order"),
+            supabase.from("areas").select("*").order("sort_order"),
           ]),
           8000
         );
         if (!alive) return;
-        if (t.error || b.error || p.error) throw t.error || b.error || p.error;
+        if (t.error || b.error || p.error || a.error) throw t.error || b.error || p.error || a.error;
         setTasks((t.data ?? []).map((r) => taskFromRow(r as never)));
         setBlocks((b.data ?? []).map((r) => blockFromRow(r as never)));
         setPeople((p.data ?? []).map((r) => personFromRow(r as never)));
+        setAreas((a.data ?? []).map((r) => areaFromRow(r as never)));
         setDataSource("supabase");
       } catch (e) {
         if (!alive) return;
@@ -295,6 +318,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (supabase) persist(supabase.from("people").delete().eq("id", id));
   };
 
+  // ---- Áreas ----
+  const addArea = (input: AreaInput) => {
+    const id = makeId("a");
+    setAreas((prev) => {
+      if (supabase) persist(supabase.from("areas").insert({ id, ...areaToRow(input, prev.length) }));
+      return [...prev, { id, ...input }];
+    });
+  };
+
+  const updateArea = (id: string, patch: AreaInput) => {
+    setAreas((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+    if (supabase) persist(supabase.from("areas").update(areaToRow(patch)).eq("id", id));
+  };
+
+  const deleteArea = (id: string) => {
+    // A UI só permite excluir área sem tarefas. Pessoas ligadas são desvinculadas
+    // (no banco, via ON DELETE SET NULL em people.area_id).
+    setPeople((prev) => prev.map((p) => (p.area === id ? { ...p, area: "" } : p)));
+    setAreas((prev) => prev.filter((a) => a.id !== id));
+    setAreaFilter((f) => (f === id ? "all" : f));
+    setAreaModal(null);
+    if (supabase) persist(supabase.from("areas").delete().eq("id", id));
+  };
+
   const openNew = () => setModal({ mode: "new" });
   const openTask = (id: string) => setModal({ mode: "edit", id });
   const closeModal = () => setModal(null);
@@ -306,6 +353,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const openNewPerson = () => setPersonModal({ mode: "new" });
   const openPerson = (id: string) => setPersonModal({ mode: "edit", id });
   const closePersonModal = () => setPersonModal(null);
+
+  const openNewArea = () => setAreaModal({ mode: "new" });
+  const openArea = (id: string) => setAreaModal({ mode: "edit", id });
+  const closeAreaModal = () => setAreaModal(null);
 
   const hasActiveFilters =
     search.trim() !== "" ||
@@ -326,6 +377,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     filteredTasks,
     blocks,
     people,
+    areas,
     loading,
     dataSource,
     saveError,
@@ -352,6 +404,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     addPerson,
     updatePerson,
     deletePerson,
+    addArea,
+    updateArea,
+    deleteArea,
     modal,
     openNew,
     openTask,
@@ -364,6 +419,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     openNewPerson,
     openPerson,
     closePersonModal,
+    areaModal,
+    openNewArea,
+    openArea,
+    closeAreaModal,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

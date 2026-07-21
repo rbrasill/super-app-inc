@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AreaModal from "@/components/AreaModal";
 import BlockModal from "@/components/BlockModal";
 import BlocosView from "@/components/BlocosView";
 import BoardView, { BoardControls } from "@/components/board/BoardView";
@@ -86,6 +87,7 @@ function AppShell() {
       <TaskModal />
       <BlockModal />
       <PersonModal />
+      <AreaModal />
       <SaveErrorToast />
     </div>
   );

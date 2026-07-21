@@ -17,10 +17,11 @@ export default function Topbar({ title, sub, view }: { title: string; sub: strin
     openNewBlock,
     openNewPerson,
     dataSource,
+    areas,
   } = useStore();
 
   const handleExport = () => {
-    exportTasksCsv(hasActiveFilters ? filteredTasks : tasks, blocks);
+    exportTasksCsv(hasActiveFilters ? filteredTasks : tasks, blocks, areas);
   };
 
   const isBoard = view === "board";

@@ -14,11 +14,11 @@ function SectionTitle({ accent, children }: { accent: string; children: React.Re
 }
 
 export default function SponsorView() {
-  const { tasks, blocks, people } = useStore();
+  const { tasks, blocks, people, areas } = useStore();
   const kpis = getKpis(tasks, people);
-  const blockRows = getBlocks(tasks, blocks);
-  const decisions = getDecisions(tasks, people);
-  const delivered = getDelivered(tasks);
+  const blockRows = getBlocks(tasks, blocks, areas);
+  const decisions = getDecisions(tasks, people, areas);
+  const delivered = getDelivered(tasks, areas);
 
   return (
     <div className="pt-[14px]">

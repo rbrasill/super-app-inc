@@ -2,9 +2,15 @@ import { AREAS, PHASES, PROJECT, PRIO, STATUSES } from "./data";
 import { THEME, whoAvatar } from "./theme";
 import type { Area, Bloco, DecoratedTask, Fase, Person, Status, Task } from "./types";
 
-const areaMap: Record<string, Area> = Object.fromEntries(AREAS.map((a) => [a.id, a]));
 const statusMap: Record<string, Status> = Object.fromEntries(STATUSES.map((s) => [s.id, s]));
 const phaseMap: Record<string, Fase> = Object.fromEntries(PHASES.map((p) => [p.id, p]));
+
+/** Fallback para tarefa cuja área não existe mais (ex.: recém-excluída). */
+const UNKNOWN_AREA: Area = { id: "", name: "Sem área", color: THEME.inkFaint };
+/** Mapa id→Área para lookup rápido. */
+export const areaMapOf = (areas: Area[]): Record<string, Area> =>
+  Object.fromEntries(areas.map((a) => [a.id, a]));
+const areaOf = (am: Record<string, Area>, id: string): Area => am[id] ?? UNKNOWN_AREA;
 
 const fmt = (d: string): string => {
   if (!d) return "";
@@ -33,8 +39,8 @@ function inclusiveDays(start: string, end: string): number {
 const blockMapOf = (blocks: Bloco[]): Record<string, Bloco> =>
   Object.fromEntries(blocks.map((b) => [b.id, b]));
 
-export function decorate(tk: Task, blocks: Record<string, Bloco>): DecoratedTask {
-  const a = areaMap[tk.area];
+export function decorate(tk: Task, blocks: Record<string, Bloco>, areas: Record<string, Area>): DecoratedTask {
+  const a = areas[tk.area] ?? UNKNOWN_AREA;
   const p = PRIO[tk.prio || "media"];
   const st = statusMap[tk.status];
   const bl = blocks[tk.blockId];
@@ -67,10 +73,11 @@ export interface BoardColumn extends Status {
   empty: boolean;
 }
 
-export function getBoard(tasks: Task[], blocks: Bloco[]): BoardColumn[] {
+export function getBoard(tasks: Task[], blocks: Bloco[], areas: Area[] = AREAS): BoardColumn[] {
   const bm = blockMapOf(blocks);
+  const am = areaMapOf(areas);
   return STATUSES.map((s) => {
-    const items = tasks.filter((tk) => tk.status === s.id).map((tk) => decorate(tk, bm));
+    const items = tasks.filter((tk) => tk.status === s.id).map((tk) => decorate(tk, bm, am));
     return { ...s, count: items.length, tasks: items, empty: items.length === 0 };
   });
 }
@@ -83,12 +90,15 @@ export interface GroupedArea {
   rows: DecoratedTask[];
 }
 
-export function getGrouped(tasks: Task[], blocks: Bloco[]): GroupedArea[] {
+export function getGrouped(tasks: Task[], blocks: Bloco[], areas: Area[] = AREAS): GroupedArea[] {
   const bm = blockMapOf(blocks);
-  return AREAS.map((a) => {
-    const rows = tasks.filter((tk) => tk.area === a.id).map((tk) => decorate(tk, bm));
-    return { id: a.id, name: a.name, color: a.color, count: rows.length, rows };
-  }).filter((g) => g.count > 0);
+  const am = areaMapOf(areas);
+  return areas
+    .map((a) => {
+      const rows = tasks.filter((tk) => tk.area === a.id).map((tk) => decorate(tk, bm, am));
+      return { id: a.id, name: a.name, color: a.color, count: rows.length, rows };
+    })
+    .filter((g) => g.count > 0);
 }
 
 export interface Kpis {
@@ -145,8 +155,8 @@ export interface AreaDistRow {
   total: number;
 }
 
-export function getAreaDist(tasks: Task[]): AreaDistRow[] {
-  return AREAS.map((a) => {
+export function getAreaDist(tasks: Task[], areas: Area[] = AREAS): AreaDistRow[] {
+  return areas.map((a) => {
     const items = tasks.filter((tk) => tk.area === a.id);
     const segs = STATUSES.map((s) => {
       const n = items.filter((tk) => tk.status === s.id).length;
@@ -249,7 +259,7 @@ function blocksWindow(blocks: Bloco[], project = PROJECT): { start: number; span
   return { start: min, spanDays: Math.max(1, Math.round((max - min) / DAY_MS) + 1) };
 }
 
-export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): BlockRow[] {
+export function getBlocks(tasks: Task[], blocks: Bloco[], areas: Area[] = AREAS, project = PROJECT): BlockRow[] {
   const win = blocksWindow(blocks, project);
   return chronological(blocks).map((b, i) => {
     const items = tasks.filter((tk) => tk.blockId === b.id);
@@ -280,7 +290,7 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): Bl
     const width = Math.max(0, Math.min(days, win.spanDays - offset));
 
     // Distribuição por área dentro do bloco.
-    const areaSegs: BlockAreaSeg[] = AREAS.map((a) => {
+    const areaSegs: BlockAreaSeg[] = areas.map((a) => {
       const n = items.filter((tk) => tk.area === a.id).length;
       if (!n) return null;
       return { name: a.name, color: a.color, count: n, w: ((n / items.length) * 100).toFixed(2) + "%" };
@@ -335,10 +345,11 @@ export interface RiskRow {
   sub: string;
 }
 
-export function getRisks(tasks: Task[]): RiskRow[] {
+export function getRisks(tasks: Task[], areas: Area[] = AREAS): RiskRow[] {
+  const am = areaMapOf(areas);
   return tasks
     .filter((tk) => tk.dep)
-    .map((tk) => ({ desc: tk.desc, sub: `${areaMap[tk.area].name} · ${tk.dep}` }));
+    .map((tk) => ({ desc: tk.desc, sub: `${areaOf(am, tk.area).name} · ${tk.dep}` }));
 }
 
 export interface DecisionRow {
@@ -347,11 +358,12 @@ export interface DecisionRow {
   sub: string;
 }
 
-export function getDecisions(tasks: Task[], people: Person[]): DecisionRow[] {
+export function getDecisions(tasks: Task[], people: Person[], areas: Area[] = AREAS): DecisionRow[] {
+  const am = areaMapOf(areas);
   return decisionTasks(tasks, people).map((tk, i) => ({
     n: i + 1,
     desc: tk.desc,
-    sub: areaMap[tk.area].name + (tk.dep ? ` · ${tk.dep}` : ""),
+    sub: areaOf(am, tk.area).name + (tk.dep ? ` · ${tk.dep}` : ""),
   }));
 }
 
@@ -360,10 +372,11 @@ export interface DeliveredRow {
   sub: string;
 }
 
-export function getDelivered(tasks: Task[]): DeliveredRow[] {
+export function getDelivered(tasks: Task[], areas: Area[] = AREAS): DeliveredRow[] {
+  const am = areaMapOf(areas);
   return tasks
     .filter((tk) => tk.status === "entregue" || tk.status === "pronto")
-    .map((tk) => ({ desc: tk.desc, sub: `${areaMap[tk.area].name} · ${statusMap[tk.status].name}` }));
+    .map((tk) => ({ desc: tk.desc, sub: `${areaOf(am, tk.area).name} · ${statusMap[tk.status].name}` }));
 }
 
 export interface PersonRow {
@@ -374,12 +387,19 @@ export interface PersonRow {
   initials: string;
   avBg: string;
   avColor: string;
+  /** Área ligada (nome/cor) ou vazio se não houver. */
+  areaId: string;
+  areaName: string;
+  areaColor: string;
+  hasArea: boolean;
 }
 
-export function getPeople(people: Person[]): PersonRow[] {
+export function getPeople(people: Person[], areas: Area[] = AREAS): PersonRow[] {
+  const am = areaMapOf(areas);
   return people.map((p) => {
     const undef = !p.name.trim() || p.name === "A definir";
     const av = whoAvatar(p.name);
+    const ar = p.area ? am[p.area] : undefined;
     return {
       id: p.id,
       name: p.name,
@@ -388,6 +408,10 @@ export function getPeople(people: Person[]): PersonRow[] {
       initials: undef ? "?" : p.name.trim()[0].toUpperCase(),
       avBg: undef ? THEME.chip : av.avBg,
       avColor: undef ? THEME.inkMute : av.avColor,
+      areaId: ar?.id ?? "",
+      areaName: ar?.name ?? "",
+      areaColor: ar?.color ?? THEME.inkFaint,
+      hasArea: !!ar,
     };
   });
 }

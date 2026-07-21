@@ -7,7 +7,8 @@ export type StatusId =
   | "pronto"
   | "entregue";
 
-export type AreaId = "dev" | "juridico" | "cobranca" | "financeiro" | "parcerias";
+/** Id de área. As áreas são editáveis (CRUD), então é texto livre, não union. */
+export type AreaId = string;
 
 export type PriorityId = "alta" | "media" | "baixa";
 
@@ -84,6 +85,8 @@ export interface Person {
   name: string;
   role: string;
   resp: string;
+  /** Área à qual a pessoa está ligada (id de área; "" = sem área). */
+  area: string;
 }
 
 /** Tarefa com campos derivados prontos para exibição. */
