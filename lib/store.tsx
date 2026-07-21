@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { AREAS, BLOCKS, PEOPLE, TASKS } from "./data";
+import { AREAS, BLOCKS, PEOPLE, PHASES, TASKS } from "./data";
 import {
   areaFromRow,
   areaToRow,
@@ -10,11 +10,13 @@ import {
   isSupabaseEnabled,
   personFromRow,
   personToRow,
+  phaseFromRow,
+  phaseToRow,
   supabase,
   taskFromRow,
   taskToRow,
 } from "./supabase";
-import type { Area, AreaId, Bloco, Person, StatusId, Task } from "./types";
+import type { Area, AreaId, Bloco, Fase, Person, StatusId, Task } from "./types";
 
 export type AreaFilter = AreaId | "all";
 export type BlockFilter = string | "all";
@@ -54,6 +56,11 @@ export interface AreaInput {
   color: string;
 }
 
+export interface PhaseInput {
+  name: string;
+  short: string;
+}
+
 export type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 /**
@@ -86,6 +93,7 @@ interface StoreValue {
   blocks: Bloco[];
   people: Person[];
   areas: Area[];
+  phases: Fase[];
   loading: boolean;
   /** Origem dos dados: banco ao vivo (`supabase`) ou memória (`demo`). */
   dataSource: DataSource;
@@ -117,6 +125,9 @@ interface StoreValue {
   addArea: (input: AreaInput) => void;
   updateArea: (id: string, patch: AreaInput) => void;
   deleteArea: (id: string) => void;
+  addPhase: (input: PhaseInput) => void;
+  updatePhase: (id: string, patch: PhaseInput) => void;
+  deletePhase: (id: string) => void;
   modal: ModalState;
   openNew: () => void;
   openTask: (id: string) => void;
@@ -133,6 +144,10 @@ interface StoreValue {
   openNewArea: () => void;
   openArea: (id: string) => void;
   closeAreaModal: () => void;
+  phaseModal: ModalState;
+  openNewPhase: () => void;
+  openPhase: (id: string) => void;
+  closePhaseModal: () => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -148,6 +163,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
   const [areas, setAreas] = useState<Area[]>(() =>
     isSupabaseEnabled ? [] : AREAS.map((a) => ({ ...a }))
+  );
+  const [phases, setPhases] = useState<Fase[]>(() =>
+    isSupabaseEnabled ? [] : PHASES.map((f) => ({ ...f }))
   );
   const [loading, setLoading] = useState(isSupabaseEnabled);
   const [dataSource, setDataSource] = useState<DataSource>(
@@ -187,6 +205,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [blockModal, setBlockModal] = useState<ModalState>(null);
   const [personModal, setPersonModal] = useState<ModalState>(null);
   const [areaModal, setAreaModal] = useState<ModalState>(null);
+  const [phaseModal, setPhaseModal] = useState<ModalState>(null);
 
   // Carrega do Supabase (se configurado).
   useEffect(() => {
@@ -197,6 +216,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setBlocks(BLOCKS.map((x) => ({ ...x })));
       setPeople(PEOPLE.map((x) => ({ ...x })));
       setAreas(AREAS.map((x) => ({ ...x })));
+      setPhases(PHASES.map((x) => ({ ...x })));
       setDataSource("demo");
     };
     const withTimeout = <T,>(pr: PromiseLike<T>, ms: number): Promise<T> =>
@@ -206,21 +226,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ]);
     (async () => {
       try {
-        const [t, b, p, a] = await withTimeout(
+        const [t, b, p, a, f] = await withTimeout(
           Promise.all([
             supabase.from("tasks").select("*").order("id"),
             supabase.from("blocks").select("*").order("sort_order"),
             supabase.from("people").select("*").order("sort_order"),
             supabase.from("areas").select("*").order("sort_order"),
+            supabase.from("phases").select("*").order("sort_order"),
           ]),
           8000
         );
         if (!alive) return;
-        if (t.error || b.error || p.error || a.error) throw t.error || b.error || p.error || a.error;
+        if (t.error || b.error || p.error || a.error || f.error)
+          throw t.error || b.error || p.error || a.error || f.error;
         setTasks((t.data ?? []).map((r) => taskFromRow(r as never)));
         setBlocks((b.data ?? []).map((r) => blockFromRow(r as never)));
         setPeople((p.data ?? []).map((r) => personFromRow(r as never)));
         setAreas((a.data ?? []).map((r) => areaFromRow(r as never)));
+        setPhases((f.data ?? []).map((r) => phaseFromRow(r as never)));
         setDataSource("supabase");
       } catch (e) {
         if (!alive) return;
@@ -353,6 +376,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (supabase) persist(supabase.from("areas").delete().eq("id", id));
   };
 
+  // ---- Fases ----
+  const addPhase = (input: PhaseInput) => {
+    const id = makeId("f");
+    setPhases((prev) => {
+      if (supabase) persist(supabase.from("phases").insert({ id, ...phaseToRow(input, prev.length) }));
+      return [...prev, { id, ...input }];
+    });
+  };
+
+  const updatePhase = (id: string, patch: PhaseInput) => {
+    setPhases((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+    if (supabase) persist(supabase.from("phases").update(phaseToRow(patch)).eq("id", id));
+  };
+
+  const deletePhase = (id: string) => {
+    // A UI só permite excluir fase sem blocos (senão o FK do banco barraria).
+    setPhases((prev) => prev.filter((f) => f.id !== id));
+    setPhaseModal(null);
+    if (supabase) persist(supabase.from("phases").delete().eq("id", id));
+  };
+
   const openNew = () => setModal({ mode: "new" });
   const openTask = (id: string) => setModal({ mode: "edit", id });
   const closeModal = () => setModal(null);
@@ -368,6 +412,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const openNewArea = () => setAreaModal({ mode: "new" });
   const openArea = (id: string) => setAreaModal({ mode: "edit", id });
   const closeAreaModal = () => setAreaModal(null);
+
+  const openNewPhase = () => setPhaseModal({ mode: "new" });
+  const openPhase = (id: string) => setPhaseModal({ mode: "edit", id });
+  const closePhaseModal = () => setPhaseModal(null);
 
   const hasActiveFilters =
     search.trim() !== "" ||
@@ -389,6 +437,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     blocks,
     people,
     areas,
+    phases,
     loading,
     dataSource,
     saveError,
@@ -418,6 +467,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     addArea,
     updateArea,
     deleteArea,
+    addPhase,
+    updatePhase,
+    deletePhase,
     modal,
     openNew,
     openTask,
@@ -434,6 +486,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     openNewArea,
     openArea,
     closeAreaModal,
+    phaseModal,
+    openNewPhase,
+    openPhase,
+    closePhaseModal,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

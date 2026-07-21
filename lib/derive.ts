@@ -3,7 +3,6 @@ import { THEME, whoAvatar } from "./theme";
 import type { Area, Bloco, DecoratedTask, Fase, Person, Status, Task } from "./types";
 
 const statusMap: Record<string, Status> = Object.fromEntries(STATUSES.map((s) => [s.id, s]));
-const phaseMap: Record<string, Fase> = Object.fromEntries(PHASES.map((p) => [p.id, p]));
 
 /** Fallback para tarefa cuja área não existe mais (ex.: recém-excluída). */
 const UNKNOWN_AREA: Area = { id: "", name: "Sem área", color: THEME.inkFaint };
@@ -264,7 +263,14 @@ function blocksWindow(blocks: Bloco[], project = PROJECT): { start: number; span
   return { start: min, spanDays: Math.max(1, Math.round((max - min) / DAY_MS) + 1) };
 }
 
-export function getBlocks(tasks: Task[], blocks: Bloco[], areas: Area[] = AREAS, project = PROJECT): BlockRow[] {
+export function getBlocks(
+  tasks: Task[],
+  blocks: Bloco[],
+  areas: Area[] = AREAS,
+  phases: Fase[] = PHASES,
+  project = PROJECT
+): BlockRow[] {
+  const phaseMap: Record<string, Fase> = Object.fromEntries(phases.map((p) => [p.id, p]));
   const win = blocksWindow(blocks, project);
   return chronological(blocks).map((b, i) => {
     const items = tasks.filter((tk) => tk.blockId === b.id);

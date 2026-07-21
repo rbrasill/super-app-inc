@@ -313,9 +313,9 @@ function ConclusionRing({ pct }: { pct: number }) {
 }
 
 export default function SponsorView() {
-  const { tasks, blocks, people, areas } = useStore();
+  const { tasks, blocks, people, areas, phases } = useStore();
   const kpis = getKpis(tasks, people);
-  const blockRows = getBlocks(tasks, blocks, areas);
+  const blockRows = getBlocks(tasks, blocks, areas, phases);
   const decisions = getDecisions(tasks, people, areas);
   const delivered = getDelivered(tasks, areas);
 
@@ -329,6 +329,12 @@ export default function SponsorView() {
   }, []);
   const heroMilestone = todayIso ? getMilestones(tasks, blocks, todayIso) : null;
 
+  // Rótulo "mês/ano" do resumo (ex.: jul/26) — dinâmico, a partir de hoje.
+  const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const monthLabel = todayIso
+    ? `${MESES[Number(todayIso.slice(5, 7)) - 1]}/${todayIso.slice(2, 4)}`
+    : "";
+
   return (
     <div className="pt-[14px]">
       {/* Cabeçalho: card de resumo + indicador de contagem ao lado */}
@@ -340,7 +346,7 @@ export default function SponsorView() {
         >
           <div className="absolute -right-10 -top-10 w-[180px] h-[180px] bg-primary opacity-[0.10] rounded-full" />
           <div className="text-[11px] font-extrabold tracking-[1px] uppercase text-primary">
-            Resumo executivo · jul/26
+            Resumo executivo{monthLabel ? ` · ${monthLabel}` : ""}
           </div>
           <div className="font-head text-[24px] font-extrabold mt-2 text-inkDark tracking-[-0.02em]">
             Meu INC App · andamento geral

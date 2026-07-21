@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Area, Bloco, Person, Task } from "./types";
+import type { Area, Bloco, Fase, Person, Task } from "./types";
 
 /**
  * Cliente Supabase (browser). As chaves vêm de variáveis de ambiente públicas
@@ -128,5 +128,24 @@ export const areaFromRow = (r: AreaRowDb): Area => ({
 export const areaToRow = (a: Omit<Area, "id">, sortOrder?: number) => ({
   name: a.name,
   color: a.color,
+  ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
+});
+
+interface PhaseRowDb {
+  id: string;
+  name: string;
+  short: string;
+  sort_order: number;
+}
+
+export const phaseFromRow = (r: PhaseRowDb): Fase => ({
+  id: r.id,
+  name: r.name,
+  short: r.short,
+});
+
+export const phaseToRow = (f: Omit<Fase, "id">, sortOrder?: number) => ({
+  name: f.name,
+  short: f.short,
   ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
 });

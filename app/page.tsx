@@ -8,6 +8,7 @@ import BoardView, { BoardControls } from "@/components/board/BoardView";
 import Dashboard from "@/components/Dashboard";
 import PeopleGrid from "@/components/PeopleGrid";
 import PersonModal from "@/components/PersonModal";
+import PhaseModal from "@/components/PhaseModal";
 import Sidebar from "@/components/Sidebar";
 import SponsorView from "@/components/SponsorView";
 import TaskModal from "@/components/TaskModal";
@@ -88,6 +89,7 @@ function AppShell() {
       <BlockModal />
       <PersonModal />
       <AreaModal />
+      <PhaseModal />
       <SaveErrorToast />
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AV_PALETTE, PHASES } from "@/lib/data";
+import { AV_PALETTE } from "@/lib/data";
 import { useStore, type BlockInput } from "@/lib/store";
 import type { Bloco } from "@/lib/types";
 
@@ -24,7 +24,7 @@ const fieldCls =
   "w-full bg-panel border border-inputLine rounded-[11px] px-[13px] py-[11px] text-[13px] text-ink font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors";
 
 export default function BlockModal() {
-  const { blockModal, blocks, tasks, addBlock, updateBlock, deleteBlock, closeBlockModal } = useStore();
+  const { blockModal, blocks, tasks, phases, addBlock, updateBlock, deleteBlock, closeBlockModal } = useStore();
   const [form, setForm] = useState<BlockInput>(EMPTY);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -116,7 +116,7 @@ export default function BlockModal() {
             <label className={labelCls}>Fase do roadmap</label>
             <select className={fieldCls} value={form.phaseId} onChange={(e) => set("phaseId", e.target.value)}>
               <option value="">Sem fase</option>
-              {PHASES.map((p) => (
+              {phases.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>

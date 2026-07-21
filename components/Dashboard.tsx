@@ -46,11 +46,11 @@ function SectionTitle({
 }
 
 export default function Dashboard() {
-  const { tasks, blocks, areas, people } = useStore();
+  const { tasks, blocks, areas, phases, people } = useStore();
   const kpis = getKpis(tasks);
   const areaDist = getAreaDist(tasks, areas);
   const legend = getLegend();
-  const blockRows = getBlocks(tasks, blocks, areas);
+  const blockRows = getBlocks(tasks, blocks, areas, phases);
   const risks = getRisks(tasks, areas);
   const peopleProgress = getPeopleProgress(tasks, people);
 

@@ -79,7 +79,8 @@ alter table public.tasks      enable row level security;
 
 create policy "read statuses"   on public.statuses   for select to anon, authenticated using (true);
 create policy "read priorities" on public.priorities for select to anon, authenticated using (true);
-create policy "read phases"     on public.phases     for select to anon, authenticated using (true);
+-- phases é gerenciável pelo painel (migração 2026-07-21-phases-crud.sql):
+create policy "all phases" on public.phases for all to anon, authenticated using (true) with check (true);
 
 -- Áreas são gerenciáveis pelo painel (CRUD em Pessoas & papéis).
 create policy "all areas"   on public.areas   for all to anon, authenticated using (true) with check (true);
