@@ -7,13 +7,7 @@ import { useStore } from "@/lib/store";
 import type { Bloco, DecoratedTask } from "@/lib/types";
 import { CalendarIcon, OxIcon, PlusIcon, WarnIcon } from "./icons";
 
-/** Formata ISO (yyyy-mm-dd) como dd/mm. */
-const fmtBR = (iso: string) => {
-  const p = iso.split("-");
-  return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
-};
-
-/** Formata ISO (yyyy-mm-dd) como dd/mm/aaaa. */
+/** Formata ISO (yyyy-mm-dd) como dd/mm/aaaa — padrão de data do portal. */
 const fmtBRFull = (iso: string) => {
   const p = iso.split("-");
   return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
@@ -60,7 +54,7 @@ function PeriodCard({
         <div className="flex-1" />
         <span className="text-[12px] font-bold text-inkSoft">
           {rows.length} {rows.length === 1 ? "bife" : "bifes"}
-          {hasRange ? ` · ${fmtBR(summary.startDate)} → ${fmtBR(summary.endDate)}` : ""}
+          {hasRange ? ` · ${fmtBRFull(summary.startDate)} → ${fmtBRFull(summary.endDate)}` : ""}
         </span>
       </div>
 
@@ -90,8 +84,8 @@ function PeriodCard({
 
       {hasRange && (
         <div className="flex justify-between mt-2 text-[10px] font-bold text-inkMute">
-          <span>{fmtBR(summary.startDate)}</span>
-          <span>{fmtBR(summary.endDate)}</span>
+          <span>{fmtBRFull(summary.startDate)}</span>
+          <span>{fmtBRFull(summary.endDate)}</span>
         </div>
       )}
     </div>

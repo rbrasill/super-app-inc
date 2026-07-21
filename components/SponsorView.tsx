@@ -40,10 +40,7 @@ function MilestoneCard({ todayIso }: { todayIso: string }) {
       <div className="text-[11px] font-extrabold leading-[1.25] text-inkDark truncate" title={seg.name}>
         {seg.name}
       </div>
-      <div className="text-[10px] font-bold text-inkFaint mt-[1px]">
-        {seg.dateLabel}
-        {seg.delivered ? " · entregue ✓" : ""}
-      </div>
+      <div className="text-[10px] font-bold text-inkFaint mt-[1px]">{seg.dateLabel}</div>
     </div>
   );
 
@@ -98,7 +95,7 @@ function MilestoneCard({ todayIso }: { todayIso: string }) {
           <div
             className="absolute -top-[6px] -bottom-[6px] w-[2px] bg-inkDark/70 rounded"
             style={{ left: `${line.todayPct}%` }}
-            title={`Hoje · ${todayIso.split("-").reverse().slice(0, 2).join("/")}`}
+            title={`Hoje · ${todayIso.split("-").reverse().join("/")}`}
           />
         )}
       </div>
@@ -119,9 +116,15 @@ function MilestoneCard({ todayIso }: { todayIso: string }) {
       </div>
 
       {/* Régua início → fim */}
-      <div className="flex justify-between mt-1 text-[10px] font-bold text-inkMute">
-        <span>Início · {line.startLabel}</span>
-        <span>Entrega · {line.endLabel}</span>
+      <div className="flex justify-between mt-2">
+        <span className="inline-flex items-center gap-[6px] bg-chip rounded-[10px] px-[10px] py-[5px] text-[11.5px] font-extrabold text-inkDark">
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.4px] text-inkSoft">Início</span>
+          {line.startLabel}
+        </span>
+        <span className="inline-flex items-center gap-[6px] bg-chip rounded-[10px] px-[10px] py-[5px] text-[11.5px] font-extrabold text-inkDark">
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.4px] text-inkSoft">Entrega</span>
+          {line.endLabel}
+        </span>
       </div>
 
       {line.tasksBeyond > 0 && (

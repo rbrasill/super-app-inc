@@ -12,10 +12,12 @@ export const areaMapOf = (areas: Area[]): Record<string, Area> =>
   Object.fromEntries(areas.map((a) => [a.id, a]));
 const areaOf = (am: Record<string, Area>, id: string): Area => am[id] ?? UNKNOWN_AREA;
 
+/** Formata ISO (yyyy-mm-dd) como dd/mm/aaaa — padrão de data de todo o portal
+ * (o projeto cruza a virada do ano, então o ano é sempre exibido). */
 const fmt = (d: string): string => {
   if (!d) return "";
   const p = d.split("-");
-  return `${p[2]}/${p[1]}`;
+  return `${p[2]}/${p[1]}/${p[0]}`;
 };
 
 const DAY_MS = 86400000;
