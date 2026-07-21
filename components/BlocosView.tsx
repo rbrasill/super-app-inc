@@ -7,6 +7,19 @@ import { useStore } from "@/lib/store";
 import type { Bloco, DecoratedTask } from "@/lib/types";
 import { CalendarIcon, OxIcon, PlusIcon, WarnIcon } from "./icons";
 
+/** Formata ISO (yyyy-mm-dd) como dd/mm. */
+const fmtBR = (iso: string) => {
+  const p = iso.split("-");
+  return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
+};
+
+/** Soma n dias a uma data ISO e devolve outra ISO. */
+const addDaysISO = (iso: string, n: number) => {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
 /**
  * Cartão único do período: tagline da estratégia + resumo objetivo
  * (bifes, dias alocados, encaixe) + a linha do tempo clicável.
@@ -23,6 +36,7 @@ function PeriodCard({
   const ticks = Array.from({ length: Math.floor(PROJECT.totalDays / 7) }, (_, i) => (i + 1) * 7).filter(
     (d) => d < PROJECT.totalDays
   );
+  const periodEnd = addDaysISO(PROJECT.startDate, PROJECT.totalDays - 1);
 
   return (
     <div className="bg-panel border border-line rounded-2xl p-5 relative overflow-hidden">
@@ -64,7 +78,7 @@ function PeriodCard({
             onClick={() => onPick(r.id)}
             className="absolute top-[3px] bottom-[3px] rounded-[9px] flex items-center justify-center overflow-hidden px-2 border-none cursor-pointer transition-[filter] hover:brightness-105"
             style={{ left: r.offsetPct, width: r.widthPct, background: r.color }}
-            title={`${r.name} · ${r.daysLabel} · ${r.weekRange}`}
+            title={`${r.name} · ${r.daysLabel} · ${r.dateRange}`}
           >
             <span className="text-white text-[10.5px] font-extrabold truncate">
               🥩 {r.short} · {r.daysLabel}
@@ -74,8 +88,8 @@ function PeriodCard({
       </div>
 
       <div className="flex justify-between mt-2 text-[10px] font-bold text-inkMute">
-        <span>Semana 1</span>
-        <span>Semana {summary.weeks}</span>
+        <span>{fmtBR(PROJECT.startDate)}</span>
+        <span>{fmtBR(periodEnd)}</span>
       </div>
     </div>
   );
@@ -143,7 +157,7 @@ function BlockCard({ row, onOpen }: { row: BlockRow; onOpen: (id: string) => voi
 
         <h3 className="font-head text-[16px] font-extrabold tracking-[-0.02em] text-inkDark">{row.name}</h3>
         <div className="text-[11.5px] font-semibold text-inkLabel mt-[2px]">
-          {row.days} dias · {row.weekRange}
+          {row.hasDates ? `${row.dateRange} · ${row.days} ${row.days === 1 ? "dia" : "dias"}` : "Sem datas definidas"}
         </div>
 
         <div className="mt-3">
@@ -236,8 +250,9 @@ function BlockDetail({ row, onBack }: { row: BlockRow; onBack: () => void }) {
               {row.phaseShort}
             </span>
           )}
-          <span className="text-[12px] font-bold text-inkSoft">
-            {row.days} dias · {row.weekRange}
+          <span className="inline-flex items-center gap-[6px] text-[12px] font-bold text-inkSoft">
+            <CalendarIcon style={{ stroke: "#A1A5B3" }} />
+            {row.hasDates ? `${row.dateRange} · ${row.days} ${row.days === 1 ? "dia" : "dias"}` : "Sem datas definidas"}
           </span>
           <button
             onClick={() => openBlock(row.id)}

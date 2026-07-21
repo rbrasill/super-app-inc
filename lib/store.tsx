@@ -34,7 +34,8 @@ export interface NewTaskInput {
 export interface BlockInput {
   name: string;
   theme: string;
-  days: number;
+  start: string;
+  end: string;
   color: string;
   phaseId: string;
 }

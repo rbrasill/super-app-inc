@@ -30,7 +30,8 @@ create table public.phases (
 
 -- ===== Estrutura do projeto =====
 create table public.blocks (
-  id text primary key, name text not null, theme text not null default '', days integer not null default 0,
+  id text primary key, name text not null, theme text not null default '',
+  start_date date, end_date date,
   color text not null, phase_id text references public.phases(id), sort_order smallint not null default 0
 );
 create table public.project (

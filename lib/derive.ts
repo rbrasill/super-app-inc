@@ -12,11 +12,22 @@ const fmt = (d: string): string => {
   return `${p[2]}/${p[1]}`;
 };
 
-/** Soma `n` dias a uma data ISO (yyyy-mm-dd) e devolve outra data ISO. */
-function addDays(iso: string, n: number): string {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+const DAY_MS = 86400000;
+
+/** Converte data ISO em timestamp (meia-noite local); null se vazia/inválida. */
+function toTime(iso: string): number | null {
+  if (!iso) return null;
+  const t = new Date(iso + "T00:00:00").getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+/** Dias inclusivos entre duas datas ISO (1 = mesmo dia; 0 se faltar/invertido). */
+function inclusiveDays(start: string, end: string): number {
+  const a = toTime(start);
+  const b = toTime(end);
+  if (a === null || b === null) return 0;
+  const diff = Math.round((b - a) / DAY_MS);
+  return diff >= 0 ? diff + 1 : 0;
 }
 
 const blockMapOf = (blocks: Bloco[]): Record<string, Bloco> =>
@@ -163,11 +174,10 @@ export interface BlockRow {
   /** Posição na timeline do período (0–100%). */
   offsetPct: string;
   widthPct: string;
-  /** Dia inicial/final dentro do período (1-based). */
-  startDay: number;
-  endDay: number;
+  /** Faixa de datas do bife (dd/mm → dd/mm) ou "Sem datas". */
   dateRange: string;
-  weekRange: string;
+  /** true quando início e fim estão definidos. */
+  hasDates: boolean;
   /** Progresso / semáforo. */
   count: number;
   done: number;
@@ -188,15 +198,12 @@ export interface BlocksSummary {
   allocatedDays: number;
   /** Diferença entre o alocado e o período (0 = encaixe perfeito). */
   overflowDays: number;
-  weeks: number;
   fitLabel: string;
   fitColor: string;
 }
 
-const projectStart = (project = PROJECT) => project.startDate;
-
 export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): BlockRow[] {
-  let cursor = 0; // dias acumulados antes do bloco atual
+  const projTime = toTime(project.startDate) ?? 0;
   return blocks.map((b, i) => {
     const items = tasks.filter((tk) => tk.blockId === b.id);
     const done = items.filter((tk) => tk.status === "entregue").length;
@@ -217,14 +224,13 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): Bl
       txt = "Sem tarefas";
     }
 
-    const days = Math.max(0, b.days);
-    const startDay = cursor + 1;
-    const endDay = cursor + days;
-    const startDate = addDays(projectStart(project), cursor);
-    const endDate = addDays(projectStart(project), Math.max(cursor, endDay - 1));
-    const weekStart = Math.floor(cursor / 7) + 1;
-    const weekEnd = Math.max(weekStart, Math.ceil(endDay / 7));
-    cursor = endDay;
+    // Duração e posição na timeline vêm das datas do próprio bife.
+    const days = inclusiveDays(b.start, b.end);
+    const hasDates = !!(b.start && b.end);
+    const aTime = toTime(b.start);
+    const offsetDays = aTime !== null ? Math.round((aTime - projTime) / DAY_MS) : 0;
+    const offset = Math.max(0, Math.min(offsetDays, project.totalDays));
+    const width = Math.max(0, Math.min(days, project.totalDays - offset));
 
     // Distribuição por área dentro do bloco.
     const areaSegs: BlockAreaSeg[] = AREAS.map((a) => {
@@ -247,12 +253,10 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): Bl
       bife: i + 1,
       days,
       daysLabel: `${days}d`,
-      offsetPct: ((cursor - days) / project.totalDays) * 100 + "%",
-      widthPct: (days / project.totalDays) * 100 + "%",
-      startDay,
-      endDay,
-      dateRange: `${fmt(startDate)} → ${fmt(endDate)}`,
-      weekRange: weekStart === weekEnd ? `Semana ${weekStart}` : `Semanas ${weekStart}–${weekEnd}`,
+      offsetPct: (offset / project.totalDays) * 100 + "%",
+      widthPct: (width / project.totalDays) * 100 + "%",
+      dateRange: hasDates ? `${fmt(b.start)} → ${fmt(b.end)}` : "Sem datas",
+      hasDates,
       count: items.length,
       done,
       blocked,
@@ -269,7 +273,7 @@ export function getBlocks(tasks: Task[], blocks: Bloco[], project = PROJECT): Bl
 }
 
 export function getBlocksSummary(blocks: Bloco[], project = PROJECT): BlocksSummary {
-  const allocatedDays = blocks.reduce((s, b) => s + Math.max(0, b.days), 0);
+  const allocatedDays = blocks.reduce((s, b) => s + inclusiveDays(b.start, b.end), 0);
   const overflowDays = allocatedDays - project.totalDays;
   let fitLabel = "Encaixe perfeito nos " + project.totalDays + " dias";
   let fitColor = "#10B981";
@@ -284,7 +288,6 @@ export function getBlocksSummary(blocks: Bloco[], project = PROJECT): BlocksSumm
     totalDays: project.totalDays,
     allocatedDays,
     overflowDays,
-    weeks: Math.round(project.totalDays / 7),
     fitLabel,
     fitColor,
   };

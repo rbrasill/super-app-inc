@@ -49,8 +49,10 @@ export interface Bloco {
   name: string;
   /** Tema / o que entra no bloco. */
   theme: string;
-  /** Dias alocados para o bloco. */
-  days: number;
+  /** Data de início do bife (ISO yyyy-mm-dd; "" = sem data). */
+  start: string;
+  /** Data de fim do bife (ISO yyyy-mm-dd; "" = sem data). */
+  end: string;
   /** Cor de destaque. */
   color: string;
   /** Fase do roadmap em que o bloco se encaixa ("" = sem fase). */

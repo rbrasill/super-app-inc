@@ -8,14 +8,15 @@ import type { Bloco } from "@/lib/types";
 const EMPTY: BlockInput = {
   name: "",
   theme: "",
-  days: 15,
+  start: "",
+  end: "",
   color: AV_PALETTE[0],
   phaseId: "",
 };
 
 function toInput(b: Bloco): BlockInput {
-  const { name, theme, days, color, phaseId } = b;
-  return { name, theme, days, color, phaseId };
+  const { name, theme, start, end, color, phaseId } = b;
+  return { name, theme, start, end, color, phaseId };
 }
 
 const labelCls = "text-[11px] font-extrabold uppercase tracking-[0.4px] text-inkLabel mb-[6px] block";
@@ -43,9 +44,18 @@ export default function BlockModal() {
 
   const set = <K extends keyof BlockInput>(k: K, v: BlockInput[K]) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Fim nunca pode ser antes do início (se ambos estão preenchidos, alinha).
+  const endBeforeStart = !!form.start && !!form.end && form.end < form.start;
+  const duration =
+    form.start && form.end && form.end >= form.start
+      ? Math.round(
+          (new Date(form.end + "T00:00:00").getTime() - new Date(form.start + "T00:00:00").getTime()) / 86400000
+        ) + 1
+      : 0;
+
   const submit = () => {
     if (!form.name.trim()) return;
-    const clean: BlockInput = { ...form, days: Math.max(0, Math.round(form.days) || 0) };
+    const clean: BlockInput = { ...form, end: endBeforeStart ? form.start : form.end };
     if (isEdit && editing) updateBlock(editing.id, clean);
     else addBlock(clean);
     closeBlockModal();
@@ -102,27 +112,50 @@ export default function BlockModal() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Fase do roadmap</label>
-              <select className={fieldCls} value={form.phaseId} onChange={(e) => set("phaseId", e.target.value)}>
-                <option value="">Sem fase</option>
-                {PHASES.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+          <div>
+            <label className={labelCls}>Fase do roadmap</label>
+            <select className={fieldCls} value={form.phaseId} onChange={(e) => set("phaseId", e.target.value)}>
+              <option value="">Sem fase</option>
+              {PHASES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Início do bife</label>
+                <input
+                  type="date"
+                  className={fieldCls}
+                  value={form.start}
+                  onChange={(e) => set("start", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Fim do bife</label>
+                <input
+                  type="date"
+                  className={fieldCls}
+                  value={form.end}
+                  min={form.start || undefined}
+                  onChange={(e) => set("end", e.target.value)}
+                />
+              </div>
             </div>
-            <div>
-              <label className={labelCls}>Prazo (dias)</label>
-              <input
-                type="number"
-                min={0}
-                className={fieldCls}
-                value={form.days}
-                onChange={(e) => set("days", Number(e.target.value))}
-              />
+            <div className="mt-[6px] text-[11px] font-semibold min-h-[15px]">
+              {endBeforeStart ? (
+                <span className="text-[#B63636]">O fim não pode ser antes do início.</span>
+              ) : duration > 0 ? (
+                <span className="text-inkSoft">
+                  Duração: {duration} {duration === 1 ? "dia" : "dias"}.
+                </span>
+              ) : (
+                <span className="text-inkMute">Defina início e fim para calcular a duração.</span>
+              )}
             </div>
           </div>
 

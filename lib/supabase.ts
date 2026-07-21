@@ -34,7 +34,8 @@ interface BlockRowDb {
   id: string;
   name: string;
   theme: string;
-  days: number;
+  start_date: string | null;
+  end_date: string | null;
   color: string;
   phase_id: string | null;
   sort_order: number;
@@ -78,7 +79,8 @@ export const blockFromRow = (r: BlockRowDb): Bloco => ({
   id: r.id,
   name: r.name,
   theme: r.theme,
-  days: r.days,
+  start: r.start_date ?? "",
+  end: r.end_date ?? "",
   color: r.color,
   phaseId: r.phase_id ?? "",
 });
@@ -86,7 +88,8 @@ export const blockFromRow = (r: BlockRowDb): Bloco => ({
 export const blockToRow = (b: Omit<Bloco, "id">, sortOrder?: number) => ({
   name: b.name,
   theme: b.theme,
-  days: b.days,
+  start_date: b.start || null,
+  end_date: b.end || null,
   color: b.color,
   phase_id: b.phaseId || null,
   ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
