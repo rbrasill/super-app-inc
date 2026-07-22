@@ -1,13 +1,13 @@
-import type { Area, Bloco, Person, Priority, PriorityId, Status, Task } from "./types";
+import type { Area, Bloco, Fase, Person, Priority, PriorityId, Status, Task } from "./types";
 
 export const STATUSES: Status[] = [
-  { id: "discovery", name: "Discovery", sub: "Pesquisa / ideia", color: "#64748B", soft: "#EEF1F5", light: true },
-  { id: "backlog", name: "Backlog", sub: "No radar, sem prazo", color: "#7C8598", soft: "#F0F2F5", light: true },
-  { id: "planejado", name: "Planejado", sub: "Na esteira", color: "#6366F1", soft: "#ECEDFE" },
-  { id: "execucao", name: "Em execução", sub: "Sendo feito", color: "#F97316", soft: "#FEF0E4" },
-  { id: "validacao", name: "Em validação", sub: "Em conferência", color: "#A855F7", soft: "#F5ECFE" },
-  { id: "pronto", name: "Pronto p/ entrega", sub: "Aguardando", color: "#CA9A00", soft: "#FBF3D6" },
-  { id: "entregue", name: "Entregue", sub: "No ar / oficializado", color: "#10B981", soft: "#E3F7EF" },
+  { id: "discovery", name: "Discovery", sub: "Pesquisa / ideia", color: "#8C94A3", soft: "#F0F2F6", light: true },
+  { id: "backlog", name: "Backlog", sub: "No radar, sem prazo", color: "#6E7485", soft: "#EEF0F5", light: true },
+  { id: "planejado", name: "Planejado", sub: "Na esteira", color: "#564FFD", soft: "#EBEBFF" },
+  { id: "execucao", name: "Em execução", sub: "Sendo feito", color: "#FF6636", soft: "#FFEEE8" },
+  { id: "validacao", name: "Em validação", sub: "Em conferência", color: "#7872FD", soft: "#EBEBFF" },
+  { id: "pronto", name: "Pronto p/ entrega", sub: "Aguardando", color: "#FD8E1F", soft: "#FFF2E6" },
+  { id: "entregue", name: "Entregue", sub: "No ar / oficializado", color: "#23BD33", soft: "#E1F7E3" },
 ];
 
 export const AREAS: Area[] = [
@@ -31,6 +31,17 @@ export const PROJECT = {
 } as const;
 
 /**
+ * Fases do roadmap — camada acima dos blocos. Cada bloco se encaixa em uma
+ * fase; o andamento da fase decorre das entregas dos blocos/tarefas dela.
+ */
+export const PHASES: Fase[] = [
+  { id: "v1.0", name: "v1.0 · Base sólida", short: "v1.0" },
+  { id: "v2.0", name: "v2.0 · Reter & renegociar", short: "v2.0" },
+  { id: "v3.0", name: "v3.0 · Receita recorrente", short: "v3.0" },
+  { id: "v4.0", name: "v4.0 · Plataforma financeira", short: "v4.0" },
+];
+
+/**
  * Blocos ("bifes") — fatias temáticas do projeto. São editáveis em tempo de
  * execução (o usuário pode adicionar quantos quiser); estes são apenas a
  * semente inicial, espelhando o exemplo da estratégia (35 + 30 + 15 + 10 = 90).
@@ -40,36 +51,44 @@ export const BLOCKS: Bloco[] = [
     id: "b1",
     name: "Primeiro Acesso",
     theme: "Login, onboarding e consentimento. A base: todo cliente passa por aqui antes de qualquer coisa.",
-    days: 35,
+    start: "2026-07-16",
+    end: "2026-08-19",
     color: "#6366F1",
+    phaseId: "v1.0",
   },
   {
     id: "b2",
     name: "Cliente",
     theme: "Tudo que impacta o cliente: boleto, documentos, obra, chamados e notificações.",
-    days: 30,
+    start: "2026-08-20",
+    end: "2026-09-18",
     color: "#0EA5E9",
+    phaseId: "v1.0",
   },
   {
     id: "b3",
     name: "Financeiro",
     theme: "Renegociação, cobrança acolhedora, conciliação, carteira e produtos de receita.",
-    days: 15,
+    start: "2026-09-19",
+    end: "2026-10-03",
     color: "#10B981",
+    phaseId: "v2.0",
   },
   {
     id: "b4",
     name: "Assistência Técnica / SAC",
     theme: "Atendimento ao cliente: chamados, assinatura de aditivos e pós-venda.",
-    days: 10,
+    start: "2026-10-04",
+    end: "2026-10-13",
     color: "#F97316",
+    phaseId: "v2.0",
   },
 ];
 
 export const PRIO: Record<PriorityId, Priority> = {
-  alta: { label: "Alta", bg: "#FDE4DE", text: "#D14328" },
-  media: { label: "Média", bg: "#FEF0D8", text: "#B4700A" },
-  baixa: { label: "Baixa", bg: "#EBEEF2", text: "#5B6472" },
+  alta: { label: "Alta", bg: "#FFF0F0", text: "#B63636" },
+  media: { label: "Média", bg: "#FFF2E6", text: "#985613" },
+  baixa: { label: "Baixa", bg: "#EEF0F5", text: "#6E7485" },
 };
 
 export const TASKS: Task[] = [
@@ -99,19 +118,28 @@ export const TASKS: Task[] = [
   { id: "t24", desc: "Disponibilizar segunda via de contrato em PDF", area: "dev", blockId: "b2", who: "Rafael Soares", prio: "media", status: "pronto", start: "2026-06-25", end: "2026-07-25", dep: "" },
 ];
 
-/** [nome, papel, responsabilidade] */
-export const PEOPLE_RAW: [string, string, string][] = [
-  ["Gustavo", "Product Owner · dono do quadro", "Decide o quê e a prioridade; mantém as três camadas; monta o report do Edinho."],
-  ["Rafael Brasil", "Planejamento & Estratégia", "Cronograma, dependências, riscos e evolução da estratégia."],
-  ["Diogo", "Tech Lead", "Coordena tecnicamente os devs no dia a dia."],
-  ["Felipe Martins", "Diretor de TI · Patrocinador técnico", "Define tecnologia e estratégia técnica do app."],
-  ["Rafael Soares", "Desenvolvedor", "Executa tarefas de desenvolvimento."],
-  ["Victor", "Desenvolvedor", "Executa tarefas de desenvolvimento."],
-  ["Edinho", "Patrocinador (Sponsor)", "Presidente e investidor; recebe reporte e decisões-chave."],
-  ["A definir", "Representante · Jurídico", "Ponto focal do jurídico no projeto."],
-  ["A definir", "Representante · Cobrança", "Ponto focal de cobrança no projeto."],
-  ["A definir", "Representante · Financeiro", "Ponto focal do financeiro no projeto."],
+/** [nome, papel, responsabilidade, areaId] (área "" = sem área) */
+export const PEOPLE_RAW: [string, string, string, string][] = [
+  ["Gustavo", "Product Owner · dono do quadro", "Decide o quê e a prioridade; mantém as três camadas; monta o report do Edinho.", ""],
+  ["Rafael Brasil", "Planejamento & Estratégia", "Cronograma, dependências, riscos e evolução da estratégia.", ""],
+  ["Diogo", "Tech Lead", "Coordena tecnicamente os devs no dia a dia.", "dev"],
+  ["Felipe Martins", "Diretor de TI · Patrocinador técnico", "Define tecnologia e estratégia técnica do app.", "dev"],
+  ["Rafael Soares", "Desenvolvedor", "Executa tarefas de desenvolvimento.", "dev"],
+  ["Victor", "Desenvolvedor", "Executa tarefas de desenvolvimento.", "dev"],
+  ["Edinho", "Patrocinador (Sponsor)", "Presidente e investidor; recebe reporte e decisões-chave.", ""],
+  ["A definir", "Representante · Jurídico", "Ponto focal do jurídico no projeto.", "juridico"],
+  ["A definir", "Representante · Cobrança", "Ponto focal de cobrança no projeto.", "cobranca"],
+  ["A definir", "Representante · Financeiro", "Ponto focal do financeiro no projeto.", "financeiro"],
 ];
+
+/** Time do projeto (semente editável em runtime). */
+export const PEOPLE: Person[] = PEOPLE_RAW.map((r, i) => ({
+  id: `p${i + 1}`,
+  name: r[0],
+  role: r[1],
+  resp: r[2],
+  area: r[3],
+}));
 
 export const AV_PALETTE = [
   "#5B5BF5", "#3B82F6", "#8B5CF6", "#F97316", "#10B981",

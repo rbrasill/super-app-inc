@@ -7,7 +7,8 @@ export type StatusId =
   | "pronto"
   | "entregue";
 
-export type AreaId = "dev" | "juridico" | "cobranca" | "financeiro" | "parcerias";
+/** Id de área. As áreas são editáveis (CRUD), então é texto livre, não union. */
+export type AreaId = string;
 
 export type PriorityId = "alta" | "media" | "baixa";
 
@@ -27,6 +28,18 @@ export interface Area {
 }
 
 /**
+ * Fase do roadmap (v1.0–v4.0). Camada acima dos blocos: cada bloco se
+ * encaixa em uma fase; as tarefas pertencem aos blocos.
+ */
+export interface Fase {
+  id: string;
+  /** Nome completo (ex.: "v1.0 · Base sólida"). */
+  name: string;
+  /** Rótulo curto (ex.: "v1.0"). */
+  short: string;
+}
+
+/**
  * Bloco ("bife") — fatia temática do projeto. Cada bloco agrupa tarefas
  * (o "pacote completo": tela + back + regra + cadastro) e recebe um prazo
  * próprio em dias; a soma dos blocos fecha o período do projeto.
@@ -37,10 +50,14 @@ export interface Bloco {
   name: string;
   /** Tema / o que entra no bloco. */
   theme: string;
-  /** Dias alocados para o bloco. */
-  days: number;
+  /** Data de início do bife (ISO yyyy-mm-dd; "" = sem data). */
+  start: string;
+  /** Data de fim do bife (ISO yyyy-mm-dd; "" = sem data). */
+  end: string;
   /** Cor de destaque. */
   color: string;
+  /** Fase do roadmap em que o bloco se encaixa ("" = sem fase). */
+  phaseId: string;
 }
 
 export interface Priority {
@@ -64,9 +81,12 @@ export interface Task {
 }
 
 export interface Person {
+  id: string;
   name: string;
   role: string;
   resp: string;
+  /** Área à qual a pessoa está ligada (id de área; "" = sem área). */
+  area: string;
 }
 
 /** Tarefa com campos derivados prontos para exibição. */
@@ -87,6 +107,8 @@ export interface DecoratedTask extends Task {
   blockColor: string;
   depText: string;
   hasDep: boolean;
+  avBg: string;
+  avColor: string;
 }
 
 export type View = "board" | "blocks" | "dash" | "sponsor" | "people";

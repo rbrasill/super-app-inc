@@ -32,17 +32,16 @@ function NavLink({
   return (
     <a
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-[10px] rounded-cardSm cursor-pointer text-[13.5px] transition-colors hover:bg-sidebarHover ${
+      className={`relative flex items-center gap-3 px-3 py-[11px] rounded-cardSm cursor-pointer text-[13.5px] transition-colors ${
         active
-          ? "bg-sidebarActiveBg text-white font-bold"
-          : "bg-transparent text-sidebarText font-semibold"
+          ? "bg-softOrange text-primary font-extrabold"
+          : "bg-transparent text-inkMid font-semibold hover:bg-[#FAF6EF]"
       }`}
     >
       <span
-        className={`w-[18px] h-[18px] flex ${
-          active ? "text-sidebarActiveIcon" : "text-sidebarFaint"
-        }`}
-      >
+        className={`absolute left-0 top-[9px] bottom-[9px] w-[3px] rounded-[3px] ${active ? "bg-primary" : "bg-transparent"}`}
+      />
+      <span className={`w-[18px] h-[18px] flex ${active ? "text-primary" : "text-inkMute"}`}>
         <Icon />
       </span>
       <span className="flex-1">{label}</span>
@@ -58,30 +57,30 @@ export default function Sidebar({
   setView: (v: View) => void;
 }) {
   return (
-    <aside className="w-[250px] flex-shrink-0 bg-sidebar border-r border-sidebarLine flex flex-col px-4 py-5">
+    <aside className="w-[250px] flex-shrink-0 bg-panel border-r border-line flex flex-col px-4 py-[22px]">
       {/* Logo */}
-      <div className="flex items-center gap-[11px] px-2 pt-[6px] pb-5">
-        <div className="w-[38px] h-[38px] rounded-[11px] bg-primary flex items-center justify-center flex-shrink-0">
-          <div className="w-4 h-4 rounded-[5px] bg-accent rotate-45" />
+      <div className="flex items-center gap-3 px-2 pt-1 pb-6">
+        <div className="w-10 h-10 rounded-[12px] bg-primary flex items-center justify-center flex-shrink-0 shadow-btn">
+          <div className="w-4 h-4 rounded-[4px] bg-white rotate-45" />
         </div>
         <div>
-          <div className="font-head text-[14.5px] font-extrabold leading-[1.1] text-white whitespace-nowrap">
+          <div className="font-head text-[15px] font-extrabold leading-[1.1] text-inkDark whitespace-nowrap">
             Meu INC App
           </div>
-          <div className="text-[11px] text-sidebarFaint font-semibold mt-[2px]">Painel do projeto</div>
+          <div className="text-[11px] text-inkFaint font-medium mt-[2px]">Painel do projeto</div>
         </div>
       </div>
 
       {/* Navegação */}
-      <nav className="flex flex-col gap-[3px] mt-[2px]">
-        <div className="text-[10px] font-extrabold tracking-[0.9px] uppercase text-sidebarFaint px-3 pt-[14px] pb-[7px]">
+      <nav className="flex flex-col gap-[3px]">
+        <div className="text-[10px] font-extrabold tracking-[1px] uppercase text-inkMute px-3 pt-[10px] pb-2">
           Projeto
         </div>
         {PROJECT_NAV.map((item) => (
           <NavLink key={item.view} item={item} active={view === item.view} onClick={() => setView(item.view)} />
         ))}
 
-        <div className="text-[10px] font-extrabold tracking-[0.9px] uppercase text-sidebarFaint px-3 pt-4 pb-[7px]">
+        <div className="text-[10px] font-extrabold tracking-[1px] uppercase text-inkMute px-3 pt-[18px] pb-2">
           Apoio
         </div>
         {SUPPORT_NAV.map((item) => (
@@ -90,15 +89,15 @@ export default function Sidebar({
       </nav>
 
       {/* Usuário */}
-      <div className="mt-auto pt-[14px] border-t border-sidebarLine">
+      <div className="mt-auto pt-4 border-t border-line">
         <div className="flex items-center gap-[11px] p-2">
-          <div className="w-[34px] h-[34px] rounded-[11px] bg-primary text-white font-extrabold text-[13px] flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 rounded-[11px] bg-primary text-white font-extrabold text-[14px] flex items-center justify-center flex-shrink-0">
             G
           </div>
           <div className="min-w-0">
-            <div className="text-[12.5px] font-bold leading-[1.15] text-white">Gustavo</div>
-            <div className="text-[10.5px] text-sidebarFaint font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
-              Product Owner · dono do quadro
+            <div className="text-[13px] font-extrabold leading-[1.15] text-inkDark">Gustavo</div>
+            <div className="text-[10.5px] text-inkFaint font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+              Product Owner
             </div>
           </div>
         </div>
