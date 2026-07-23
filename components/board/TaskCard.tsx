@@ -12,16 +12,8 @@ export default function TaskCard({ task }: { task: DecoratedTask }) {
       className="bg-panel border border-line2 rounded-[13px] px-[14px] py-[13px] cursor-grab shadow-card transition-[box-shadow,transform] hover:-translate-y-[2px] hover:shadow-cardHover"
       style={{ borderLeft: `4px solid ${task.color}` }}
     >
-      {/* Descrição + prioridade */}
-      <div className="flex items-start gap-2 mb-[11px]">
-        <div className="font-medium text-[13px] leading-[1.45] flex-1 text-ink">{task.desc}</div>
-        <span
-          className="text-[9.5px] font-extrabold uppercase tracking-[0.4px] px-2 py-[3px] rounded-[20px] whitespace-nowrap flex-shrink-0"
-          style={{ background: task.prioBg, color: task.prioText }}
-        >
-          {task.prioLabel}
-        </span>
-      </div>
+      {/* Descrição */}
+      <div className="font-medium text-[13px] leading-[1.45] text-ink mb-[11px]">{task.desc}</div>
 
       {/* Dependência / trava */}
       {task.hasDep && (
@@ -31,13 +23,11 @@ export default function TaskCard({ task }: { task: DecoratedTask }) {
         </div>
       )}
 
-      {/* Área · bloco · responsável */}
+      {/* Área · responsável */}
       <div className="flex items-center gap-2">
         <span className="text-[10px] font-extrabold uppercase tracking-[0.3px]" style={{ color: task.color }}>
           {task.areaName}
         </span>
-        <span className="w-1 h-1 rounded-full bg-[#DDD5C7]" />
-        <span className="text-[10px] font-semibold text-inkFaint truncate">{task.blockName}</span>
         <span
           className="ml-auto w-[23px] h-[23px] rounded-lg text-[10px] font-extrabold flex items-center justify-center flex-shrink-0"
           style={{ background: task.avBg, color: task.avColor }}
