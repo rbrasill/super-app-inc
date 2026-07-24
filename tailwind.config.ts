@@ -10,7 +10,7 @@ const config: Config = {
     extend: {
       colors: {
         // Base neutra (Gray Scale do kit — cool)
-        bg: "#F5F7FA", // gray 50
+        bg: "#f6f6f6", // fundo geral
         panel: "#FFFFFF",
         ink: "#1D2026", // gray 900
         inkDark: "#1D2026",
@@ -21,7 +21,7 @@ const config: Config = {
         inkMute: "#B7BAC7", // gray 300
         line: "#E9EAF0", // gray 100
         line2: "#EEF0F5",
-        line3: "#F5F7FA", // gray 50
+        line3: "#f6f6f6", // gray 50
         chip: "#F0F2F6",
         inputLine: "#CED1D9", // gray 200
         // Primary (laranja)
