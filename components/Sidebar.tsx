@@ -58,17 +58,11 @@ export default function Sidebar({
 }) {
   return (
     <aside className="w-[250px] flex-shrink-0 bg-panel border-r border-line flex flex-col px-4 py-[22px]">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-2 pt-1 pb-6">
-        <div className="w-10 h-10 rounded-[12px] bg-primary flex items-center justify-center flex-shrink-0 shadow-btn">
-          <div className="w-4 h-4 rounded-[4px] bg-white rotate-45" />
-        </div>
-        <div>
-          <div className="font-head text-[15px] font-extrabold leading-[1.1] text-inkDark whitespace-nowrap">
-            Meu INC App
-          </div>
-          <div className="text-[11px] text-inkFaint font-medium mt-[2px]">Painel do projeto</div>
-        </div>
+      {/* Logo INC Empreendimentos */}
+      <div className="px-2 pt-1 pb-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/inc-logo.svg" alt="INC Empreendimentos" className="h-[30px] w-auto" />
+        <div className="text-[11px] text-inkFaint font-medium mt-[10px]">Meu INC App · Painel do projeto</div>
       </div>
 
       {/* Navegação */}
