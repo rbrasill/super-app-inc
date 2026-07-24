@@ -34,7 +34,7 @@ function NavLink({
       onClick={onClick}
       className={`relative flex items-center gap-3 px-3 py-[11px] rounded-cardSm cursor-pointer text-[13.5px] transition-colors ${
         active
-          ? "bg-softOrange text-primary font-extrabold"
+          ? "bg-inkDark text-primary font-extrabold"
           : "bg-transparent text-inkMid font-semibold hover:bg-[#FAF6EF]"
       }`}
     >
@@ -61,7 +61,7 @@ export default function Sidebar({
       {/* Logo INC Empreendimentos */}
       <div className="px-2 pt-1 pb-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/inc-logo.svg" alt="INC Empreendimentos" className="h-[30px] w-auto" />
+        <img src="/inc-logo.svg" alt="INC Empreendimentos" className="h-[42px] w-auto" />
         <div className="text-[11px] text-inkFaint font-medium mt-[10px]">Meu INC App · Painel do projeto</div>
       </div>
 
