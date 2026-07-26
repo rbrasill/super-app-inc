@@ -1,23 +1,15 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Area, Bloco, Fase, Person, Task } from "./types";
+import type { Area, Bloco, Fase, Person, Task } from "../types";
+import type { Row } from "./tables";
 
 /**
- * Cliente Supabase (browser). As chaves vêm de variáveis de ambiente públicas
- * (NEXT_PUBLIC_*). Se elas não estiverem configuradas, `supabase` é null e o
- * app cai no modo em memória (dados estáticos de lib/data.ts) — assim nada
- * quebra em ambientes sem as chaves (ex.: preview sem env).
+ * Mapeadores banco <-> tipos do app. Puros, sem I/O — rodam nos dois lados.
+ *
+ * As colunas `date` chegam como string ISO (`"2026-07-16"`) porque a carga usa
+ * `json_agg` no Postgres; datas não passam pelo parser do driver, então nunca
+ * viram objeto `Date`.
  */
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase: SupabaseClient | null =
-  url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
-
-export const isSupabaseEnabled = !!supabase;
-
-// ---- Mapeadores banco <-> tipos do app ----
-
-interface TaskRow {
+export interface TaskRow {
   id: string;
   description: string;
   area_id: string;
@@ -30,7 +22,7 @@ interface TaskRow {
   dependency: string;
 }
 
-interface BlockRowDb {
+export interface BlockRow {
   id: string;
   name: string;
   theme: string;
@@ -41,7 +33,7 @@ interface BlockRowDb {
   sort_order: number;
 }
 
-interface PersonRowDb {
+export interface PersonRow {
   id: string;
   name: string;
   role: string;
@@ -50,10 +42,17 @@ interface PersonRowDb {
   sort_order: number;
 }
 
-interface AreaRowDb {
+export interface AreaRow {
   id: string;
   name: string;
   color: string;
+  sort_order: number;
+}
+
+export interface PhaseRow {
+  id: string;
+  name: string;
+  short: string;
   sort_order: number;
 }
 
@@ -71,7 +70,7 @@ export const taskFromRow = (r: TaskRow): Task => ({
 });
 
 /** Task do app -> colunas do banco (sem o id, útil para insert/update). */
-export const taskToRow = (t: Omit<Task, "id">) => ({
+export const taskToRow = (t: Omit<Task, "id">): Row => ({
   description: t.desc,
   area_id: t.area,
   block_id: t.blockId || null,
@@ -83,7 +82,7 @@ export const taskToRow = (t: Omit<Task, "id">) => ({
   dependency: t.dep ?? "",
 });
 
-export const blockFromRow = (r: BlockRowDb): Bloco => ({
+export const blockFromRow = (r: BlockRow): Bloco => ({
   id: r.id,
   name: r.name,
   theme: r.theme,
@@ -93,7 +92,7 @@ export const blockFromRow = (r: BlockRowDb): Bloco => ({
   phaseId: r.phase_id ?? "",
 });
 
-export const blockToRow = (b: Omit<Bloco, "id">, sortOrder?: number) => ({
+export const blockToRow = (b: Omit<Bloco, "id">, sortOrder?: number): Row => ({
   name: b.name,
   theme: b.theme,
   start_date: b.start || null,
@@ -103,7 +102,7 @@ export const blockToRow = (b: Omit<Bloco, "id">, sortOrder?: number) => ({
   ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
 });
 
-export const personFromRow = (r: PersonRowDb): Person => ({
+export const personFromRow = (r: PersonRow): Person => ({
   id: r.id,
   name: r.name,
   role: r.role,
@@ -111,7 +110,7 @@ export const personFromRow = (r: PersonRowDb): Person => ({
   area: r.area_id ?? "",
 });
 
-export const personToRow = (p: Omit<Person, "id">, sortOrder?: number) => ({
+export const personToRow = (p: Omit<Person, "id">, sortOrder?: number): Row => ({
   name: p.name,
   role: p.role,
   responsibility: p.resp,
@@ -119,33 +118,37 @@ export const personToRow = (p: Omit<Person, "id">, sortOrder?: number) => ({
   ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
 });
 
-export const areaFromRow = (r: AreaRowDb): Area => ({
+export const areaFromRow = (r: AreaRow): Area => ({
   id: r.id,
   name: r.name,
   color: r.color,
 });
 
-export const areaToRow = (a: Omit<Area, "id">, sortOrder?: number) => ({
+export const areaToRow = (a: Omit<Area, "id">, sortOrder?: number): Row => ({
   name: a.name,
   color: a.color,
   ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
 });
 
-interface PhaseRowDb {
-  id: string;
-  name: string;
-  short: string;
-  sort_order: number;
-}
-
-export const phaseFromRow = (r: PhaseRowDb): Fase => ({
+export const phaseFromRow = (r: PhaseRow): Fase => ({
   id: r.id,
   name: r.name,
   short: r.short,
 });
 
-export const phaseToRow = (f: Omit<Fase, "id">, sortOrder?: number) => ({
+export const phaseToRow = (f: Omit<Fase, "id">, sortOrder?: number): Row => ({
   name: f.name,
   short: f.short,
   ...(sortOrder !== undefined ? { sort_order: sortOrder } : {}),
 });
+
+/** Payload da carga inicial (GET /api/data). */
+export interface Bootstrap {
+  /** false = o servidor não tem as variáveis do banco; o app cai em modo demo. */
+  configured: boolean;
+  tasks: TaskRow[];
+  blocks: BlockRow[];
+  people: PersonRow[];
+  areas: AreaRow[];
+  phases: PhaseRow[];
+}

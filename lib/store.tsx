@@ -2,20 +2,20 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { AREAS, BLOCKS, PEOPLE, PHASES, TASKS } from "./data";
+import { loadAll, mutate } from "./db/client";
 import {
   areaFromRow,
   areaToRow,
-  blockToRow,
   blockFromRow,
-  isSupabaseEnabled,
+  blockToRow,
   personFromRow,
   personToRow,
   phaseFromRow,
   phaseToRow,
-  supabase,
   taskFromRow,
   taskToRow,
-} from "./supabase";
+} from "./db/rows";
+import { del, ins, upd, type DbOp } from "./db/tables";
 import type { Area, AreaId, Bloco, Fase, Person, StatusId, Task } from "./types";
 
 export type AreaFilter = AreaId | "all";
@@ -65,12 +65,19 @@ export type ModalState = { mode: "new" } | { mode: "edit"; id: string } | null;
 
 /**
  * De onde vêm/vão os dados:
- * - `loading`  : ainda carregando do Supabase na montagem.
- * - `supabase` : conectado ao banco ao vivo (persiste alterações).
- * - `demo`     : sem env do Supabase, ou a carga falhou → dados estáticos em
- *                memória (nada é salvo). Serve para o app nunca ficar vazio.
+ * - `loading` : ainda carregando na montagem.
+ * - `db`      : conectado ao PostgreSQL ao vivo (persiste alterações).
+ * - `demo`    : servidor sem as variáveis do banco, ou a carga falhou → dados
+ *               estáticos em memória (nada é salvo). Serve para o app nunca
+ *               ficar vazio.
  */
-export type DataSource = "loading" | "supabase" | "demo";
+export type DataSource = "loading" | "db" | "demo";
+
+/** Problema de banco a mostrar na tela — a carga ou uma gravação falhou. */
+export interface DbIssue {
+  kind: "load" | "save";
+  message: string;
+}
 
 /** Gera um id único (usado em modo offline e como chave dos inserts). */
 function makeId(prefix: string): string {
@@ -78,11 +85,12 @@ function makeId(prefix: string): string {
   return `${prefix}_${rnd.replace(/-/g, "").slice(0, 12)}`;
 }
 
-/** Extrai uma mensagem curta e legível de um erro do supabase-js. */
+/** Extrai uma mensagem curta e legível de um erro qualquer. */
 function errText(err: unknown): string {
+  if (err instanceof Error) return err.message;
   if (err && typeof err === "object") {
-    const e = err as { message?: string; details?: string; hint?: string };
-    return e.message || e.details || e.hint || "erro desconhecido";
+    const e = err as { message?: string; detail?: string };
+    return e.message || e.detail || "erro desconhecido";
   }
   return String(err);
 }
@@ -95,11 +103,11 @@ interface StoreValue {
   areas: Area[];
   phases: Fase[];
   loading: boolean;
-  /** Origem dos dados: banco ao vivo (`supabase`) ou memória (`demo`). */
+  /** Origem dos dados: banco ao vivo (`db`) ou memória (`demo`). */
   dataSource: DataSource;
-  /** Mensagem da última gravação que falhou (null = tudo ok). */
-  saveError: string | null;
-  clearSaveError: () => void;
+  /** Última falha de banco — carga ou gravação (null = tudo ok). */
+  dbError: DbIssue | null;
+  clearDbError: () => void;
   search: string;
   setSearch: (v: string) => void;
   areaFilter: AreaFilter;
@@ -153,47 +161,36 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  // Sem Supabase: usa os dados estáticos (modo demo em memória).
-  const [tasks, setTasks] = useState<Task[]>(() => (isSupabaseEnabled ? [] : [...TASKS]));
-  const [blocks, setBlocks] = useState<Bloco[]>(() =>
-    isSupabaseEnabled ? [] : BLOCKS.map((b) => ({ ...b }))
-  );
-  const [people, setPeople] = useState<Person[]>(() =>
-    isSupabaseEnabled ? [] : PEOPLE.map((p) => ({ ...p }))
-  );
-  const [areas, setAreas] = useState<Area[]>(() =>
-    isSupabaseEnabled ? [] : AREAS.map((a) => ({ ...a }))
-  );
-  const [phases, setPhases] = useState<Fase[]>(() =>
-    isSupabaseEnabled ? [] : PHASES.map((f) => ({ ...f }))
-  );
-  const [loading, setLoading] = useState(isSupabaseEnabled);
-  const [dataSource, setDataSource] = useState<DataSource>(
-    isSupabaseEnabled ? "loading" : "demo"
-  );
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const clearSaveError = () => setSaveError(null);
+  // Começa vazio: só o servidor sabe se o banco está configurado, e a resposta
+  // vem no primeiro fetch. Se não estiver (ou falhar), cai no modo demo.
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [blocks, setBlocks] = useState<Bloco[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [phases, setPhases] = useState<Fase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState<DataSource>("loading");
+  const [dbError, setDbError] = useState<DbIssue | null>(null);
+  const clearDbError = () => setDbError(null);
 
-  // Em modo demo (sem env OU fallback após falha de carga), não tenta gravar:
-  // a tela mostra os dados estáticos, não os do banco — gravar criaria estado
-  // misturado no banco e toasts de erro enganosos com a rede fora.
-  const canPersist = dataSource === "supabase";
+  // Em modo demo (banco não configurado OU fallback após falha de carga), não
+  // tenta gravar: a tela mostra os dados estáticos, não os do banco — gravar
+  // criaria estado misturado no banco e avisos de erro enganosos.
+  const canPersist = dataSource === "db";
 
-  /** Dispara uma escrita no Supabase sem bloquear a UI; registra falhas. */
-  const persist = (p: PromiseLike<{ error: unknown }> | undefined) => {
-    if (!p || !canPersist) return;
-    Promise.resolve(p).then(
-      ({ error }) => {
-        if (error) {
-          console.error("[supabase]", error);
-          setSaveError(errText(error));
-        }
-      },
-      (err) => {
-        console.error("[supabase]", err);
-        setSaveError(errText(err));
+  /**
+   * Envia escritas ao banco sem bloquear a UI (a tela já foi atualizada de
+   * forma otimista); só registra falhas. Várias operações na mesma chamada vão
+   * em transação, na ordem — use assim quando a ordem importa.
+   */
+  const persist = (...ops: DbOp[]) => {
+    if (!canPersist || ops.length === 0) return;
+    mutate(ops).then(({ error }) => {
+      if (error) {
+        console.error("[db]", error.message);
+        setDbError({ kind: "save", message: error.message });
       }
-    );
+    });
   };
 
   const [search, setSearch] = useState("");
@@ -207,9 +204,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [areaModal, setAreaModal] = useState<ModalState>(null);
   const [phaseModal, setPhaseModal] = useState<ModalState>(null);
 
-  // Carrega do Supabase (se configurado).
+  // Carga inicial: uma chamada a /api/data, que lê as 5 tabelas de uma vez.
   useEffect(() => {
-    if (!supabase) return;
     let alive = true;
     const fallback = () => {
       setTasks([...TASKS]);
@@ -219,37 +215,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setPhases(PHASES.map((x) => ({ ...x })));
       setDataSource("demo");
     };
-    const withTimeout = <T,>(pr: PromiseLike<T>, ms: number): Promise<T> =>
-      Promise.race([
-        Promise.resolve(pr),
-        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
-      ]);
     (async () => {
       try {
-        const [t, b, p, a, f] = await withTimeout(
-          Promise.all([
-            supabase.from("tasks").select("*").order("id"),
-            supabase.from("blocks").select("*").order("sort_order"),
-            supabase.from("people").select("*").order("sort_order"),
-            supabase.from("areas").select("*").order("sort_order"),
-            supabase.from("phases").select("*").order("sort_order"),
-          ]),
-          8000
-        );
+        const boot = await loadAll();
         if (!alive) return;
-        if (t.error || b.error || p.error || a.error || f.error)
-          throw t.error || b.error || p.error || a.error || f.error;
-        setTasks((t.data ?? []).map((r) => taskFromRow(r as never)));
-        setBlocks((b.data ?? []).map((r) => blockFromRow(r as never)));
-        setPeople((p.data ?? []).map((r) => personFromRow(r as never)));
-        setAreas((a.data ?? []).map((r) => areaFromRow(r as never)));
-        setPhases((f.data ?? []).map((r) => phaseFromRow(r as never)));
-        setDataSource("supabase");
+        if (!boot.configured) {
+          // Servidor sem PGHOST/DATABASE_URL: modo demo, sem erro na tela.
+          fallback();
+          return;
+        }
+        setTasks(boot.tasks.map(taskFromRow));
+        setBlocks(boot.blocks.map(blockFromRow));
+        setPeople(boot.people.map(personFromRow));
+        setAreas(boot.areas.map(areaFromRow));
+        setPhases(boot.phases.map(phaseFromRow));
+        setDataSource("db");
       } catch (e) {
         if (!alive) return;
-        // Rede/consulta falhou: cai nos dados estáticos para o app não ficar vazio.
-        console.error("[supabase] load", e);
+        // Rede/consulta falhou: cai nos dados estáticos para o app não ficar
+        // vazio, mas mostra o motivo — modo demo silencioso já confundiu antes.
+        console.error("[db] load", e);
         fallback();
+        setDbError({ kind: "load", message: errText(e) });
       } finally {
         if (alive) setLoading(false);
       }
@@ -278,38 +265,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const addTask = (input: NewTaskInput) => {
     const id = makeId("t");
     setTasks((prev) => [...prev, { id, ...input }]);
-    if (supabase) persist(supabase.from("tasks").insert({ id, ...taskToRow(input) }));
+    persist(ins("tasks", { id, ...taskToRow(input) }));
   };
 
   const updateTask = (id: string, patch: NewTaskInput) => {
     setTasks((prev) => prev.map((tk) => (tk.id === id ? { ...tk, ...patch } : tk)));
-    if (supabase) persist(supabase.from("tasks").update(taskToRow(patch)).eq("id", id));
+    persist(upd("tasks", taskToRow(patch), "id", id));
   };
 
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((tk) => tk.id !== id));
     setModal(null);
-    if (supabase) persist(supabase.from("tasks").delete().eq("id", id));
+    persist(del("tasks", "id", id));
   };
 
   const moveTask = (id: string, status: StatusId) => {
     setTasks((prev) => prev.map((tk) => (tk.id === id ? { ...tk, status } : tk)));
-    if (supabase) persist(supabase.from("tasks").update({ status_id: status }).eq("id", id));
+    persist(upd("tasks", { status_id: status }, "id", id));
   };
 
   // ---- Blocos ----
+  // Nos `add*`: o sort_order sai do tamanho da lista atual (`blocks.length`), e
+  // não de dentro do updater de estado — efeito colateral em updater roda duas
+  // vezes no StrictMode e mandaria o insert duplicado.
   const addBlock = (input: BlockInput) => {
     const id = makeId("b");
-    setBlocks((prev) => {
-      const next = [...prev, { id, ...input }];
-      if (supabase) persist(supabase.from("blocks").insert({ id, ...blockToRow(input, prev.length) }));
-      return next;
-    });
+    setBlocks((prev) => [...prev, { id, ...input }]);
+    persist(ins("blocks", { id, ...blockToRow(input, blocks.length) }));
   };
 
   const updateBlock = (id: string, patch: BlockInput) => {
     setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-    if (supabase) persist(supabase.from("blocks").update(blockToRow(patch)).eq("id", id));
+    persist(upd("blocks", blockToRow(patch), "id", id));
   };
 
   const deleteBlock = (id: string) => {
@@ -318,52 +305,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setBlocks((prev) => prev.filter((b) => b.id !== id));
     setBlockFilter((f) => (f === id ? "all" : f));
     setBlockModal(null);
-    if (supabase) {
-      persist(supabase.from("tasks").update({ block_id: null }).eq("block_id", id));
-      persist(supabase.from("blocks").delete().eq("id", id));
-    }
+    // Lote atômico e nesta ordem: tasks.block_id aponta para blocks(id), então
+    // soltar as tarefas tem de acontecer antes do delete do bloco.
+    persist(upd("tasks", { block_id: null }, "block_id", id), del("blocks", "id", id));
   };
 
   // ---- Pessoas ----
   const addPerson = (input: PersonInput) => {
     const id = makeId("p");
-    setPeople((prev) => {
-      if (supabase) persist(supabase.from("people").insert({ id, ...personToRow(input, prev.length) }));
-      return [...prev, { id, ...input }];
-    });
+    setPeople((prev) => [...prev, { id, ...input }]);
+    persist(ins("people", { id, ...personToRow(input, people.length) }));
   };
 
   const updatePerson = (id: string, patch: PersonInput) => {
-    setPeople((prev) => {
-      const old = prev.find((p) => p.id === id);
-      if (old && old.name !== patch.name) {
-        setTasks((ts) => ts.map((tk) => (tk.who === old.name ? { ...tk, who: patch.name } : tk)));
-        setWhoFilter((f) => (f === old.name ? patch.name : f));
-        if (supabase) persist(supabase.from("tasks").update({ who: patch.name }).eq("who", old.name));
-      }
-      return prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
-    });
-    if (supabase) persist(supabase.from("people").update(personToRow(patch)).eq("id", id));
+    const old = people.find((p) => p.id === id);
+    const renamed = !!old && old.name !== patch.name;
+    setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    if (renamed) {
+      // As tarefas guardam o nome da pessoa, não o id: renomear leva as tarefas.
+      setTasks((ts) => ts.map((tk) => (tk.who === old.name ? { ...tk, who: patch.name } : tk)));
+      setWhoFilter((f) => (f === old.name ? patch.name : f));
+    }
+    persist(
+      upd("people", personToRow(patch), "id", id),
+      ...(renamed ? [upd("tasks", { who: patch.name }, "who", old.name)] : [])
+    );
   };
 
   const deletePerson = (id: string) => {
     setPeople((prev) => prev.filter((p) => p.id !== id));
     setPersonModal(null);
-    if (supabase) persist(supabase.from("people").delete().eq("id", id));
+    persist(del("people", "id", id));
   };
 
   // ---- Áreas ----
   const addArea = (input: AreaInput) => {
     const id = makeId("a");
-    setAreas((prev) => {
-      if (supabase) persist(supabase.from("areas").insert({ id, ...areaToRow(input, prev.length) }));
-      return [...prev, { id, ...input }];
-    });
+    setAreas((prev) => [...prev, { id, ...input }]);
+    persist(ins("areas", { id, ...areaToRow(input, areas.length) }));
   };
 
   const updateArea = (id: string, patch: AreaInput) => {
     setAreas((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
-    if (supabase) persist(supabase.from("areas").update(areaToRow(patch)).eq("id", id));
+    persist(upd("areas", areaToRow(patch), "id", id));
   };
 
   const deleteArea = (id: string) => {
@@ -373,28 +357,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAreas((prev) => prev.filter((a) => a.id !== id));
     setAreaFilter((f) => (f === id ? "all" : f));
     setAreaModal(null);
-    if (supabase) persist(supabase.from("areas").delete().eq("id", id));
+    persist(del("areas", "id", id));
   };
 
   // ---- Fases ----
   const addPhase = (input: PhaseInput) => {
     const id = makeId("f");
-    setPhases((prev) => {
-      if (supabase) persist(supabase.from("phases").insert({ id, ...phaseToRow(input, prev.length) }));
-      return [...prev, { id, ...input }];
-    });
+    setPhases((prev) => [...prev, { id, ...input }]);
+    persist(ins("phases", { id, ...phaseToRow(input, phases.length) }));
   };
 
   const updatePhase = (id: string, patch: PhaseInput) => {
     setPhases((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
-    if (supabase) persist(supabase.from("phases").update(phaseToRow(patch)).eq("id", id));
+    persist(upd("phases", phaseToRow(patch), "id", id));
   };
 
   const deletePhase = (id: string) => {
     // A UI só permite excluir fase sem blocos (senão o FK do banco barraria).
     setPhases((prev) => prev.filter((f) => f.id !== id));
     setPhaseModal(null);
-    if (supabase) persist(supabase.from("phases").delete().eq("id", id));
+    persist(del("phases", "id", id));
   };
 
   const openNew = () => setModal({ mode: "new" });
@@ -440,8 +422,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     phases,
     loading,
     dataSource,
-    saveError,
-    clearSaveError,
+    dbError,
+    clearDbError,
     search,
     setSearch,
     areaFilter,

@@ -33,20 +33,24 @@ function Loader() {
   );
 }
 
-function SaveErrorToast() {
-  const { saveError, clearSaveError } = useStore();
-  if (!saveError) return null;
+function DbErrorToast() {
+  const { dbError, clearDbError } = useStore();
+  if (!dbError) return null;
+  const title =
+    dbError.kind === "load"
+      ? "Sem conexão com o banco — mostrando dados de demonstração"
+      : "Falha ao salvar no banco";
   return (
     <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-[520px] flex items-start gap-3 rounded-[14px] border border-danger/30 bg-white px-4 py-3 shadow-xl">
       <div className="mt-[1px] w-[18px] h-[18px] shrink-0 rounded-full bg-danger/12 text-danger flex items-center justify-center text-[12px] font-black">
         !
       </div>
       <div className="min-w-0">
-        <div className="text-[12.5px] font-bold text-inkDark">Falha ao salvar no banco</div>
-        <div className="text-[11.5px] text-inkSoft mt-[2px] break-words">{saveError}</div>
+        <div className="text-[12.5px] font-bold text-inkDark">{title}</div>
+        <div className="text-[11.5px] text-inkSoft mt-[2px] break-words">{dbError.message}</div>
       </div>
       <button
-        onClick={clearSaveError}
+        onClick={clearDbError}
         className="ml-1 text-inkMute hover:text-ink text-[16px] leading-none font-bold"
         aria-label="Fechar aviso"
       >
@@ -90,7 +94,7 @@ function AppShell() {
       <PersonModal />
       <AreaModal />
       <PhaseModal />
-      <SaveErrorToast />
+      <DbErrorToast />
     </div>
   );
 }
