@@ -1,1186 +1,927 @@
-# Meu INC App — Funcionamento da Plataforma
+# Meu INC App — Como a Plataforma Funciona
 
-> **Para quem é este documento:** um agente de IA que vai ler, entender e alterar
-> este código. É um manual operacional, não um README de marketing. Contém as
-> assinaturas reais, os contratos entre camadas, os invariantes que não podem ser
-> quebrados e as armadilhas que já custaram depuração.
+> **Para quem é este documento:** um agente de IA que vai **operar** esta
+> plataforma pelo banco de dados — criar, alterar e excluir tarefas, blocos,
+> pessoas, áreas e fases. Você **não** vai mexer no código da aplicação.
 >
-> **Como usar:** leia as seções 1–4 antes de qualquer alteração. A seção 11
-> (invariantes e armadilhas) e a 12 (receitas) são consulta pontual. Onde este
-> documento e o código divergirem, **o código é a verdade** — mas trate a
-> divergência como bug de um dos dois e reporte.
+> Por isso o documento tem duas metades:
+>
+> - **Parte 1 — Entenda como um usuário.** O que a plataforma é, o vocabulário do
+>   projeto, o que cada tela mostra e de onde vem cada número. Leia primeiro:
+>   sem esse modelo mental, você vai gravar dados sintaticamente válidos que
+>   produzem telas erradas.
+> - **Parte 2 — Como mexer nos dados.** Onde cada informação da tela mora no
+>   banco, as regras de preenchimento, o SQL de cada operação e a lista do que
+>   nunca fazer.
+>
+> **Aviso central:** você escreve **direto no banco**, sem passar pelas
+> validações da aplicação. As proteções que existem na interface (não deixar
+> excluir uma área com tarefas, não aceitar status inválido) **não vão te
+> proteger**. A responsabilidade de gravar dados coerentes é sua. A Parte 2
+> lista exatamente o que pode quebrar.
 
 ---
 
 ## Índice
 
-1. [O que a plataforma é](#1-o-que-a-plataforma-é)
-2. [Modelo de domínio](#2-modelo-de-domínio)
-3. [Arquitetura em quatro camadas](#3-arquitetura-em-quatro-camadas)
-4. [Regras de ouro](#4-regras-de-ouro)
-5. [Camada de dados](#5-camada-de-dados-banco--api)
-6. [Store: estado e mutações](#6-store-estado-e-mutações)
-7. [derive.ts: toda a lógica de cálculo](#7-derivets-toda-a-lógica-de-cálculo)
-8. [Telas e componentes](#8-telas-e-componentes)
-9. [Banco de dados](#9-banco-de-dados)
-10. [Configuração e execução](#10-configuração-e-execução)
-11. [Invariantes e armadilhas](#11-invariantes-e-armadilhas)
-12. [Receitas](#12-receitas-como-fazer-alterações-comuns)
-13. [Como verificar seu trabalho](#13-como-verificar-seu-trabalho)
-14. [O que NÃO está implementado](#14-o-que-não-está-implementado)
+**Parte 1 — Entenda como um usuário**
+1. [O que é a plataforma](#1-o-que-é-a-plataforma)
+2. [Vocabulário do projeto](#2-vocabulário-do-projeto)
+3. [O ciclo de vida de uma tarefa](#3-o-ciclo-de-vida-de-uma-tarefa)
+4. [As cinco telas](#4-as-cinco-telas)
+5. [Como a plataforma calcula prazo, entrega e conclusão](#5-como-a-plataforma-calcula-prazo-entrega-e-conclusão)
+
+**Parte 2 — Como mexer nos dados**
+6. [Onde você vai trabalhar](#6-onde-você-vai-trabalhar-atenção)
+7. [Da tela para a tabela](#7-da-tela-para-a-tabela)
+8. [Regras de preenchimento](#8-regras-de-preenchimento)
+9. [Receitas: criar, alterar, excluir](#9-receitas-criar-alterar-excluir)
+10. [O que NUNCA fazer](#10-o-que-nunca-fazer)
+11. [Como conferir que deu certo](#11-como-conferir-que-deu-certo)
+12. [Referência rápida](#12-referência-rápida)
 
 ---
 
-## 1. O que a plataforma é
+# Parte 1 — Entenda como um usuário
 
-Painel de acompanhamento (SPA) da **INC Empreendimentos** para gerenciar a
-construção de um app chamado "Meu INC App".
+## 1. O que é a plataforma
 
-**Ponto de confusão a evitar desde já:** este repositório **não é** o app do
-cliente final. É a ferramenta interna de gestão do projeto que constrói esse app.
-Quando o código fala em "tarefas", são tarefas do projeto de desenvolvimento, não
-tarefas de um usuário do app.
+É um **painel de acompanhamento de projeto** da INC Empreendimentos, uma
+construtora. O projeto que ele acompanha é a construção de um aplicativo chamado
+"Meu INC App", voltado aos clientes da construtora (boleto, documentos,
+acompanhamento de obra, renegociação).
 
-Serve dois públicos com necessidades opostas:
+**Não confunda os dois:** este painel é a ferramenta interna de gestão. As
+"tarefas" que você vai manipular são tarefas do time que constrói o app — coisas
+como "Implantar login CPF + WhatsApp" ou "Emitir parecer sobre cobrança
+acolhedora". Não são tarefas de um cliente usando o app.
 
-| Público | Precisa de | Telas |
-|---|---|---|
-| Time de execução | Detalhe operacional, tarefa por tarefa | Quadro de execução, Blocos |
-| Patrocinador (papel "Sponsor") | Resumo executivo: onde está, o que saiu, o que espera decisão dele | Visão do patrocinador |
+Quem usa o painel:
 
-**Stack:** Next.js 15 (App Router) · React 19 · TypeScript 5.7 · Tailwind CSS 3.4
-· PostgreSQL via driver `pg` 8.
+| Quem | Para quê |
+|---|---|
+| **Gustavo** — Product Owner | Dono do quadro. Decide o quê e a prioridade. |
+| **Rafael Brasil** — Planejamento | Cronograma, dependências, riscos. |
+| **Diogo** — Tech Lead / **Rafael Soares, Victor** — Devs | Executam as tarefas. |
+| **Felipe Martins** — Diretor de TI | Patrocinador **técnico**. |
+| **Edinho** — Patrocinador (Sponsor) | Presidente e investidor. Vê só o resumo executivo e as decisões que dependem dele. |
+| Representantes de Jurídico, Cobrança, Financeiro | Pontos focais das áreas. |
 
-**Idioma:** todo o código, comentários, identificadores de domínio e interface
-estão em **português**. Mantenha assim. Termos do domínio que aparecem em
-identificadores: `bloco`/`bife`, `fase`, `tarefa`, `area`, `patrocinador`.
+## 2. Vocabulário do projeto
 
----
+Você precisa desses cinco termos para entender qualquer tela.
 
-## 2. Modelo de domínio
+### Fase
 
-Hierarquia de três níveis:
+Marco grande do roadmap do aplicativo. São quatro, e representam versões:
 
-```
-Fase (v1.0 … v4.0)          camada de roadmap
-  └── Bloco / "bife"        fatia temática, com data de início e fim próprias
-        └── Tarefa          unidade de trabalho, com responsável e status
-```
+- **v1.0 · Base sólida** — o mínimo para o app existir
+- **v2.0 · Reter & renegociar** — cobrança e renegociação
+- **v3.0 · Receita recorrente**
+- **v4.0 · Plataforma financeira**
 
-"Bife" é o apelido interno de bloco (a metáfora é fatiar o projeto em pedaços
-digeríveis). Os dois termos aparecem no código e na interface como sinônimos.
+### Bloco (também chamado de **"bife"**)
 
-### Tipos exatos (`lib/types.ts`)
+Este é o conceito mais característico do projeto, então entenda bem.
 
-```ts
-export type StatusId =
-  | "discovery" | "backlog" | "planejado" | "execucao"
-  | "validacao" | "pronto" | "entregue";
+O projeto foi fatiado em pedaços temáticos, apelidados de **"bifes"** (a metáfora
+é fatiar algo grande em porções digeríveis). Cada bife entrega um **pacote
+completo** de uma funcionalidade — tela + back-end + regra de negócio + cadastro —
+e tem **data de início e fim próprias**.
 
-export type AreaId = string;        // texto livre: áreas são editáveis (CRUD)
-export type PriorityId = "alta" | "media" | "baixa";
+Os quatro bifes iniciais:
 
-export interface Status  { id: StatusId; name: string; sub: string;
-                           color: string; soft: string; light?: boolean }
-export interface Area    { id: AreaId; name: string; color: string }
-export interface Fase    { id: string; name: string; short: string }
-export interface Priority{ label: string; bg: string; text: string }
-
-export interface Bloco {
-  id: string;
-  name: string;
-  theme: string;      // "o que entra no bloco"
-  start: string;      // ISO yyyy-mm-dd; "" = sem data
-  end: string;        // ISO yyyy-mm-dd; "" = sem data
-  color: string;
-  phaseId: string;    // "" = sem fase
-}
-
-export interface Task {
-  id: string;
-  desc: string;
-  area: AreaId;
-  blockId: string;    // "" = sem bloco
-  who: string;        // NOME da pessoa, não id — ver §11
-  prio: PriorityId;
-  status: StatusId;
-  start: string;      // ISO; "" = sem data
-  end: string;        // ISO; "" = sem data
-  dep: string;        // dependência em texto livre; "" = sem trava
-}
-
-export interface Person {
-  id: string; name: string; role: string; resp: string;
-  area: string;       // id de área; "" = sem área
-}
-
-export type View = "board" | "blocks" | "dash" | "sponsor" | "people";
-export type Sub  = "kanban" | "grouped";
-```
-
-`DecoratedTask extends Task` adiciona ~16 campos prontos para render
-(`areaName`, `color`, `statusName`, `dateLabel`, `initials`, `avBg`…). Componentes
-consomem `DecoratedTask`, nunca `Task` cru. Produzido por `decorate()`.
-
-### Convenção de "vazio"
-
-**String vazia `""`, nunca `null` nem `undefined`**, em todo o modelo do app. A
-conversão para `NULL` do banco acontece só nos mapeadores (`lib/db/rows.ts`).
-Se você introduzir `null` no tipo do app, vai quebrar comparações e renders que
-assumem string.
-
-### Pipeline de status
-
-Ordem fixa, definida por `STATUSES` em `lib/data.ts` (a ordem do array **é** a
-ordem das colunas do Kanban):
-
-| # | id | Nome | Subtítulo |
+| Bife | Tema | Duração | Fase |
 |---|---|---|---|
-| 1 | `discovery` | Discovery | Pesquisa / ideia |
-| 2 | `backlog` | Backlog | No radar, sem prazo |
-| 3 | `planejado` | Planejado | Na esteira |
-| 4 | `execucao` | Em execução | Sendo feito |
-| 5 | `validacao` | Em validação | Em conferência |
-| 6 | `pronto` | Pronto p/ entrega | Aguardando |
-| 7 | `entregue` | Entregue | No ar / oficializado |
+| Primeiro Acesso | Login, onboarding, consentimento LGPD | 35 dias | v1.0 |
+| Cliente | Boleto, documentos, obra, chamados, notificações | 30 dias | v1.0 |
+| Financeiro | Renegociação, cobrança, conciliação, carteira | 15 dias | v2.0 |
+| Assistência Técnica / SAC | Chamados, aditivos, pós-venda | 10 dias | v2.0 |
 
-Semânticas derivadas que você precisa conhecer:
+Somados: 90 dias. **Mas esse total não é fixo no sistema** — ele é calculado
+somando a duração de todos os bifes cadastrados. Se você criar um bife novo, o
+total do projeto aumenta sozinho. Isso é intencional.
 
-- **Concluído** = `entregue` (e só ele). É a base do % de conclusão.
-- **Em andamento** = `execucao` + `validacao` + `pronto`.
-- **Travada** = qualquer status, com `dep` não vazio.
-- **"Entregue recentemente"** (tela do patrocinador) = `entregue` **ou** `pronto`.
-  Sim, a função se chama `getDelivered` e inclui `pronto` — ver §11.
+Cada bloco pertence a uma fase. Tarefas pertencem a blocos.
 
-### Papéis com significado para o código
+### Tarefa
 
-O patrocinador **não** é identificado por nome, e sim por expressão regular no
-campo `role`, porque as pessoas são editáveis:
+A unidade de trabalho. Tem descrição, área, bloco, responsável, prioridade,
+status, data de início, data de fim e — opcionalmente — uma **dependência**.
 
-```ts
-function findSponsor(people: Person[]): Person | undefined {
-  return (
-    people.find((p) => /sponsor/i.test(p.role)) ??
-    people.find((p) => /patrocinador/i.test(p.role) && !/t[eé]cnic/i.test(p.role))
-  );
-}
-```
+### Área
 
-A exclusão de `t[eé]cnic` existe porque há duas pessoas com "patrocinador" no
-papel: o sponsor de verdade (Edinho, "Patrocinador (Sponsor)") e o "Patrocinador
-técnico" (Felipe, Diretor de TI). Sem essa exclusão a tela do patrocinador
-mostraria as decisões da pessoa errada.
+O departamento responsável. Cinco, cada uma com uma cor usada em todo o painel:
+**Desenvolvimento** (laranja), **Jurídico** (azul), **Cobrança** (violeta),
+**Financeiro** (verde), **Parcerias** (rosa).
 
-**Consequência:** renomear um papel muda o comportamento da tela do patrocinador.
-Se você mexer nessa regex, verifique as duas pessoas.
+Toda tarefa **precisa** de uma área. Pessoas podem estar ligadas a uma área.
 
----
+### Trava (dependência)
 
-## 3. Arquitetura em quatro camadas
+Se o campo de dependência de uma tarefa tem texto, ela é considerada
+**"travada"** — está esperando algo. Exemplos reais no projeto: *"depende de
+parecer jurídico"*, *"depende de API do banco"*, *"validação jurídica + cota
+subordinada"*.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ components/         só renderizam. Nada de cálculo nem I/O   │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ consomem dados prontos
-┌──────────────────────────▼──────────────────────────────────┐
-│ lib/derive.ts       funções PURAS: estado → dados de tela    │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ recebem listas do store
-┌──────────────────────────▼──────────────────────────────────┐
-│ lib/store.tsx       Context: estado, CRUD, filtros, modais   │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ lib/db/client.ts (fetch)
-┌──────────────────────────▼──────────────────────────────────┐
-│ app/api/data/route.ts  →  lib/db/server.ts  ──pg──► Postgres │
-└─────────────────────────────────────────────────────────────┘
-```
+Isso não é um status separado: uma tarefa pode estar em execução **e** travada ao
+mesmo tempo. Travas aparecem num KPI próprio e numa lista dedicada, porque são o
+que mais atrasa projeto.
 
-### Mapa de arquivos
+## 3. O ciclo de vida de uma tarefa
 
-```
-app/
-  layout.tsx              fontes (Manrope corpo + Montserrat títulos), metadata, lang=pt-BR
-  page.tsx                shell: StoreProvider, estado view/sub, Loader, DbErrorToast
-  globals.css             reset, fundo #f6f6f6, scrollbar .sc-scroll, animações
-  icon.svg                favicon
-  api/data/route.ts       ÚNICA porta do banco
+Sete status, nesta ordem. Uma tarefa caminha da esquerda para a direita (mas pode
+voltar).
 
-lib/
-  data.ts                 dados estáticos: STATUSES, AREAS, PROJECT, PHASES, BLOCKS,
-                          PRIO, TASKS, PEOPLE_RAW, PEOPLE, AV_PALETTE
-  types.ts                tipos do domínio
-  derive.ts               TODA a lógica de cálculo (568 linhas) — pura
-  store.tsx               Context Provider + useStore()
-  theme.ts                THEME (tokens em objeto) + whoAvatar()
-  exportCsv.ts            exportTasksCsv()
-  db/
-    tables.ts             contrato tabelas/colunas + helpers ins/upd/del  (isomórfico)
-    rows.ts               mapeadores banco ⇄ app + tipos de linha        (isomórfico)
-    server.ts             pool, loadAll, runOps, validação, probe        (server-only)
-    client.ts             loadAll(), mutate()                            (browser)
-
-components/
-  Sidebar.tsx             navegação, logo, rodapé de usuário
-  Topbar.tsx              título, ConnBadge, busca, exportar, botões de criar
-  KpiCard.tsx             cartão de KPI
-  icons.tsx               ícones SVG inline
-  Dashboard.tsx           tela "dash"
-  SponsorView.tsx         tela "sponsor" (a mais complexa: anéis + timeline)
-  BlocosView.tsx          tela "blocks" (lista + detalhe)
-  PeopleGrid.tsx          tela "people" (pessoas + áreas + fases)
-  TaskModal · BlockModal · PersonModal · AreaModal · PhaseModal
-  board/
-    BoardView.tsx         BoardControls (filtros) + escolha kanban/grouped
-    KanbanBoard.tsx       7 colunas + drag-and-drop
-    GroupedBoard.tsx      agrupado por área
-    TaskCard.tsx          cartão da tarefa
-
-db/
-  schema-pgadmin.sql      DDL do banco do app (8 tabelas)
-  seed-pgadmin.sql        carga mínima de referência
-  schema.sql · seed.sql   OUTRO banco (espelho dpto_processos) — ver §9
-  supabase.sql            HISTÓRICO, não usar
-
-docs/
-  POSTGRES.md             banco do app: env, TLS, camada
-  DATABASE.md             espelho dpto_processos
-  SUPABASE.md             HISTÓRICO
-```
-
----
-
-## 4. Regras de ouro
-
-Violar qualquer uma delas quebra o projeto de forma não óbvia.
-
-1. **`derive.ts` é puro.** Sem `fetch`, sem `useState`, sem `Date.now()` implícito
-   (a data "hoje" **entra por parâmetro**), sem acesso ao store. Entram listas,
-   saem dados de tela.
-2. **Componentes não calculam.** Se você está escrevendo `filter`, `reduce`,
-   `Math.round` ou formatação de data num `.tsx`, pare: isso vai para `derive.ts`.
-3. **Cálculo novo vira função exportada em `derive.ts`**, com interface de retorno
-   declarada. Não devolva objetos anônimos.
-4. **Data: ISO `yyyy-mm-dd` no código, banco e formulários; `dd/mm/aaaa` na tela.**
-   A conversão é exclusivamente `fmt()` em `derive.ts`. Nunca use
-   `toLocaleDateString` — ele varia por ambiente.
-5. **Coluna nova exige entrada em `lib/db/tables.ts`**, senão a API rejeita com
-   400. Isso é proposital.
-6. **Credenciais só em env sem `NEXT_PUBLIC_`.** Com o prefixo, o valor entra no
-   bundle do browser.
-7. **Nunca commite credenciais, hosts ou senhas.** `.env.local` é gitignored;
-   `.env.example` só com placeholders.
-8. **Comentário explica *por quê*, não *o quê*.** Em português. Se o comentário
-   parafraseia o código, apague-o.
-
----
-
-## 5. Camada de dados (banco → API)
-
-### 5.1 Por que existe uma rota de API
-
-O banco anterior era Supabase, acessado **direto do browser** via PostgREST.
-Migramos para PostgreSQL puro, que fala protocolo binário sobre TCP — o navegador
-não fala isso, e mandar credencial de banco para o cliente estaria fora de questão
-de qualquer forma. Logo: **o front nunca toca no banco.**
-
-### 5.2 `lib/db/tables.ts` — o contrato
-
-Esta é a **única fonte de identificadores SQL** aceitos pela API. Valores sempre
-vão parametrizados (`$1`, `$2`…), então o risco de injeção fica restrito aos
-identificadores — e identificador só sai desta lista.
-
-```ts
-export const TABLES = {
-  tasks: {
-    columns: ["id","description","area_id","block_id","who",
-              "priority_id","status_id","start_date","end_date","dependency"],
-    filters: ["id","block_id","who"],   // colunas aceitas em WHERE
-    orderBy: "id",
-  },
-  blocks: { columns: ["id","name","theme","start_date","end_date","color","phase_id","sort_order"],
-            filters: ["id"], orderBy: "sort_order" },
-  people: { columns: ["id","name","role","responsibility","area_id","sort_order"],
-            filters: ["id"], orderBy: "sort_order" },
-  areas:  { columns: ["id","name","color","sort_order"], filters: ["id"], orderBy: "sort_order" },
-  phases: { columns: ["id","name","short","sort_order"], filters: ["id"], orderBy: "sort_order" },
-} as const;
-
-export type Primitive = string | number | boolean | null;
-export type Row = Record<string, Primitive>;
-
-export type DbOp =
-  | { op: "insert"; table: DbTable; values: Row }
-  | { op: "update"; table: DbTable; values: Row; where: { column: string; value: Primitive } }
-  | { op: "delete"; table: DbTable; where: { column: string; value: Primitive } };
-
-// Helpers usados pelo store:
-export const ins = (table, values) => ({ op: "insert", table, values });
-export const upd = (table, values, column, value) => ({ op: "update", table, values, where: { column, value } });
-export const del = (table, column, value) => ({ op: "delete", table, where: { column, value } });
-```
-
-Por que `filters` é tão restrito: `tasks.block_id` existe porque excluir um bloco
-solta as tarefas dele; `tasks.who` existe porque renomear uma pessoa atualiza as
-tarefas dela. Nenhum outro filtro é necessário, então nenhum outro é permitido.
-
-**As tabelas `statuses`, `priorities` e `project` não estão na lista** — são
-somente leitura pela API, de propósito.
-
-### 5.3 API: `app/api/data/route.ts`
-
-```
-GET  /api/data           carga inicial (tasks, blocks, people, areas, phases)
-GET  /api/data?probe=1   diagnóstico: banco, usuário, versão, tabelas
-POST /api/data           escritas: { ops: [ {op,table,values?,where?}, … ] }
-```
-
-Declarações obrigatórias no topo do arquivo:
-
-```ts
-export const runtime = "nodejs";        // pg usa sockets TCP; Edge não serve
-export const dynamic = "force-dynamic"; // sem isso o Next cacheia o GET
-```
-
-Respostas:
-
-| Situação | Código | Corpo |
+| Status | Nome na tela | O que significa na prática |
 |---|---|---|
-| OK (GET) | 200 | `Bootstrap` (ver abaixo) |
-| OK (POST) | 200 | `{"ok":true}` |
-| Payload inválido | 400 | `{"error":"coluna não permitida em tasks: created_at"}` |
-| Erro do banco | 503 | `{"error":"Banco inacessível (ETIMEDOUT). …"}` |
+| `discovery` | Discovery | Ainda é pesquisa ou ideia. Não há compromisso. |
+| `backlog` | Backlog | Reconhecida, no radar, mas sem prazo. |
+| `planejado` | Planejado | Entrou na esteira, tem prazo. |
+| `execucao` | Em execução | Sendo feita agora. |
+| `validacao` | Em validação | Feita, em conferência. |
+| `pronto` | Pronto p/ entrega | Aprovada, aguardando publicação/oficialização. |
+| `entregue` | Entregue | No ar / oficializado. **Acabou.** |
 
-Distinção que importa: **400 = você mandou errado** (bug no cliente, corrija o
-código). **503 = o banco recusou ou está inalcançável** (ambiente ou dados).
+Três agrupamentos que a plataforma usa e que você precisa conhecer:
 
-### 5.4 Carga: uma consulta, um round-trip
+- **Concluído = apenas `entregue`.** Todo percentual de conclusão do projeto, de
+  bloco e de pessoa conta só `entregue`. Uma tarefa em `pronto` **não** conta como
+  concluída.
+- **"Em andamento" = `execucao` + `validacao` + `pronto`.**
+- **"Entregue recentemente"** (tela do patrocinador) mostra `entregue` **e**
+  `pronto` — é a única lista onde `pronto` aparece junto dos entregues.
 
-`loadAll()` em `lib/db/server.ts` monta **uma única** consulta que devolve as 5
-tabelas como arrays JSON construídos no próprio Postgres:
+Repare que `pronto` é ambíguo por desenho: conta em "andamento" e aparece em
+"entregue recentemente", mas **não** conta na conclusão. Se um número parecer
+inconsistente, provavelmente é isso.
+
+## 4. As cinco telas
+
+O painel tem cinco telas no menu lateral. Entender o que cada uma mostra é o que
+te permite prever o efeito de uma alteração no banco.
+
+### Quadro de execução
+
+A tela do dia a dia do time. Dois modos:
+
+- **Kanban** — sete colunas, uma por status, com as tarefas em cartões. O usuário
+  **arrasta** cartões entre colunas para mudar o status.
+- **Por área** — as mesmas tarefas agrupadas por departamento.
+
+Tem busca por texto (procura em descrição, responsável e dependência) e quatro
+filtros: área, bloco, responsável e status. Também exporta CSV do que está na
+tela.
+
+Cada cartão mostra: descrição, período, dependência (se houver), área e a inicial
+do responsável.
+
+> Áreas sem nenhuma tarefa **não aparecem** no modo "Por área". Se você criar uma
+> área e ela não aparecer, é porque ainda não tem tarefa.
+
+### Blocos (bifes)
+
+Lista dos bifes em **ordem cronológica** (por data de início). Cada card mostra
+nome, fase, período no formato `dd/mm/aaaa`, quantidade de tarefas e um
+**semáforo** de andamento. Clicando, abre o detalhe com o tema do bloco e suas
+tarefas.
+
+No rodapé, o total de dias somando todos os bifes.
+
+O semáforo funciona assim:
+
+| Cor | Texto | Quando |
+|---|---|---|
+| 🔴 vermelho | Em risco | tem trava **e** menos de 50% entregue |
+| 🟠 âmbar | Atenção | tem trava **ou** menos de 40% entregue |
+| 🟢 verde | No ritmo | nenhum dos casos acima |
+| ⚪ cinza | Sem tarefas | o bloco não tem nenhuma tarefa |
+
+Bloco sem tarefas é **sempre** cinza, independente das datas.
+
+### Dashboard geral
+
+Visão consolidada para o time:
+
+- **Quatro KPIs:** total de tarefas · em andamento · entregues (com % de
+  conclusão) · com trava/dependência.
+- **Distribuição por área e status** — uma barra por área, dividida por status.
+- **Andamento por bloco** — os semáforos.
+- **Conclusão de tarefas por pessoa** — uma barra por pessoa, com o percentual das
+  tarefas dela que estão entregues, ordenada do maior para o menor.
+- **Travas & dependências abertas** — lista de todas as tarefas travadas.
+
+> Pessoas sem nenhuma tarefa atribuída **não aparecem** na lista de conclusão por
+> pessoa.
+
+### Visão do patrocinador
+
+Feita para o Edinho. Sem detalhe operacional.
+
+- **Dois indicadores circulares:** quantos **dias faltam** para a entrega e o
+  **percentual de conclusão** do projeto.
+- **Marcos do projeto** — uma linha do tempo horizontal onde cada bife é um
+  segmento e o fim de cada bife é um marco. As caixas com o nome dos bifes
+  alternam acima e abaixo da linha. Tem um marcador de "hoje".
+- **Semáforo por bloco.**
+- **Decisões que dependem de você** — as tarefas atribuídas ao patrocinador que
+  ainda não foram concluídas.
+- **Entregue recentemente.**
+
+> Um bife só aparece na linha do tempo se tiver **as duas datas** preenchidas
+> (início **e** fim). Bife sem data fica invisível ali.
+
+### Pessoas & papéis
+
+Três seções: a tabela de pessoas (nome, papel, responsabilidade, área), a lista
+de **áreas** e a lista de **fases do roadmap**. Tudo editável pela interface.
+
+## 5. Como a plataforma calcula prazo, entrega e conclusão
+
+Estes quatro cálculos são a alma do painel. Se você entender só isso da Parte 1,
+já consegue trabalhar sem estragar nada.
+
+### Duração de um bife
+
+**Contagem inclusiva:** de 16/07 a 19/08 são **35 dias**, não 34. O primeiro e o
+último dia contam.
+
+### Duração total do projeto
+
+Soma da duração de todos os bifes. **Não é um número fixo.** Crie um bife de 20
+dias e o total do projeto passa de 90 para 110.
+
+### Data de entrega do projeto
+
+É o **fim do último bife** — o bife com a maior data de fim.
+
+Isto é uma decisão de produto deliberada: o **plano é o compromisso**. A entrega
+não é a data da última tarefa. Se existirem tarefas que terminam *depois* da
+entrega prevista, elas **não empurram a data** — são contadas separadamente e
+sinalizadas, para o desalinhamento ficar visível em vez de ser escondido.
+
+Consequência prática: se você quiser mudar a data de entrega do projeto, mude a
+data de fim do último bife. Mexer nas datas das tarefas não muda nada disso.
+
+### Percentual de conclusão
+
+Tarefas com status `entregue` ÷ total de tarefas. Nada mais entra na conta.
+
+Vale para o projeto todo, para cada bloco e para cada pessoa. E **recalcula
+sozinho** quando você insere ou exclui tarefas — não há nenhum total congelado
+para manter.
+
+### Um bife "cumprido" na linha do tempo
+
+Um marco só é marcado como cumprido se o bife tiver **pelo menos uma tarefa** e
+**todas** estiverem `entregue`. Bife vazio nunca conta como cumprido.
+
+---
+
+# Parte 2 — Como mexer nos dados
+
+## 6. Onde você vai trabalhar (ATENÇÃO)
+
+### ⚠️ Existem DOIS bancos com o mesmo nome de schema. Escrever no errado é o pior erro possível.
+
+| Banco | Schema | O que é |
+|---|---|---|
+| **`dpto_processo_superapp`** | `meu_inc_app` | **O banco do app. É AQUI que você trabalha.** |
+| `dpto_processos` | `meu_inc_app` | Espelho standalone, desatualizado. **Não é o app.** |
+
+Os dois têm um schema chamado `meu_inc_app`, com tabelas de nomes iguais. Se você
+gravar no espelho, **nada aparece no painel** e você vai concluir, erradamente,
+que o banco está com problema.
+
+Complicação adicional: existe uma instrução no repositório dizendo *"ao acessar
+via conector Pipedream, use sempre `dpto_processos`"*. Essa regra existe porque a
+credencial daquele conector só tem permissão nesse banco — **ela não se aplica ao
+seu trabalho**. Você precisa do `dpto_processo_superapp`.
+
+**Antes de qualquer operação, confirme onde você está:**
+
+```sql
+select current_database(), current_schema();
+```
+
+Deve responder `dpto_processo_superapp`. Se responder `dpto_processos`, **pare** —
+você está no banco errado.
+
+E defina o schema na sessão, para não precisar qualificar cada tabela:
+
+```sql
+set search_path to meu_inc_app;
+```
+
+(Todo o SQL deste documento assume que você fez isso. Se preferir, qualifique
+tudo: `meu_inc_app.tasks`.)
+
+### As alterações não aparecem sozinhas na tela
+
+O painel carrega os dados **uma vez, ao abrir a página**. Não há atualização em
+tempo real. Depois de mexer no banco, quem estiver com o painel aberto precisa
+**recarregar a página** para ver a mudança. Se alguém disser "alterei e não
+apareceu", essa é a primeira pergunta.
+
+### Sem multi-statement em alguns conectores
+
+Se a ferramenta que você usa não aceita vários comandos SQL de uma vez (é o caso
+do conector Pipedream), **execute um comando por vez**. Todas as receitas deste
+documento são um comando cada, de propósito.
+
+## 7. Da tela para a tabela
+
+Oito tabelas. Você mexe em cinco, não mexe em três.
+
+### Tabelas que você edita
+
+| Tabela | O que é na tela |
+|---|---|
+| `tasks` | As tarefas (cartões do quadro) |
+| `blocks` | Os bifes |
+| `phases` | As fases do roadmap |
+| `areas` | As áreas / departamentos |
+| `people` | As pessoas do time |
+
+### Tabelas que você NÃO edita
+
+| Tabela | Por que não |
+|---|---|
+| `statuses` | Os 7 status. Referência fixa; a aplicação usa nomes e cores do próprio código, não daqui. |
+| `priorities` | Alta / Média / Baixa. Idem. |
+| `project` | Legado. A aplicação **não lê** esta tabela. Alterar não tem efeito nenhum. |
+
+> ### ⚠️ Confira antes de tudo: `statuses` e `priorities` precisam estar populadas
+>
+> Elas são **pré-requisito**: `tasks.status_id` e `tasks.priority_id` têm chave
+> estrangeira para elas. Se estiverem vazias, **nenhuma tarefa pode ser criada** —
+> todo `insert` falha com erro de chave estrangeira.
+>
+> ```sql
+> select
+>   (select count(*) from statuses)   as statuses,    -- esperado: 7
+>   (select count(*) from priorities) as priorities;  -- esperado: 3
+> ```
+>
+> Se vierem zeradas, o banco foi criado mas a carga de referência não foi
+> aplicada. A correção é rodar o arquivo **`db/seed-pgadmin.sql`** do repositório
+> (ele também popula `areas` e `phases`, e é idempotente — pode rodar de novo sem
+> duplicar). Sem isso, não tente criar tarefas: você só vai coletar erros.
+
+> Curiosidade útil: as colunas de cor em `statuses` e `priorities` existem, mas a
+> aplicação ignora — as cores vêm do código. Não perca tempo ajustando cor ali.
+
+### Mapa campo por campo
+
+**`tasks`** — o que o usuário vê no cartão e no formulário de tarefa:
+
+| Coluna | Na tela | Obrigatório | Observação |
+|---|---|---|---|
+| `id` | — | **sim** | Você define. Sem geração automática. |
+| `description` | Descrição | **sim** | O texto do cartão. |
+| `area_id` | Área | **sim** | Precisa existir em `areas`. |
+| `block_id` | Bloco | não (`NULL`) | `NULL` = "Sem bloco". |
+| `who` | Responsável | não (`''`) | **O NOME da pessoa, em texto.** Ver §8. |
+| `priority_id` | Prioridade | **sim** (default `media`) | `alta` · `media` · `baixa`. |
+| `status_id` | Coluna do Kanban | **sim** | Um dos 7. Ver §10. |
+| `start_date` | Início | não (`NULL`) | Data. |
+| `end_date` | Fim | não (`NULL`) | Data. |
+| `dependency` | Dependência / trava | não (`''`) | Texto com conteúdo ⇒ tarefa "travada". |
+| `created_at` / `updated_at` | — | automático | Não mexa; há um gatilho que atualiza `updated_at`. |
+
+**`blocks`** — os bifes:
+
+| Coluna | Na tela | Obrigatório | Observação |
+|---|---|---|---|
+| `id` | — | **sim** | Você define. |
+| `name` | Nome do bife | **sim** | |
+| `theme` | "O que entra no bloco" | não (`''`) | Aparece no detalhe do bloco. |
+| `start_date` | Início | não (`NULL`) | **Sem as duas datas, o bife não aparece na linha do tempo do patrocinador.** |
+| `end_date` | Fim | não (`NULL`) | A maior delas define a entrega do projeto. |
+| `color` | Cor do bife | **sim** | Hex, ex. `#6366F1`. |
+| `phase_id` | Fase do roadmap | não (`NULL`) | Precisa existir em `phases`. |
+| `sort_order` | — | não (default 0) | A tela ordena por data, não por isto. |
+
+**`people`**:
+
+| Coluna | Na tela | Obrigatório | Observação |
+|---|---|---|---|
+| `id` | — | **sim** | Você define. |
+| `name` | Pessoa | **sim** | É o valor que casa com `tasks.who`. |
+| `role` | Papel | não (`''`) | **Define quem é o patrocinador.** Ver §8. |
+| `responsibility` | Responsabilidade | não (`''`) | |
+| `area_id` | Área | não (`NULL`) | Se a área for excluída, isto vira `NULL` automaticamente. |
+| `sort_order` | Ordem na tabela | não (default 0) | Aqui a ordem **é** respeitada. |
+
+**`areas`**: `id` (você define), `name`, `color` (hex) — todos obrigatórios —
+e `sort_order`.
+
+**`phases`**: `id`, `name` obrigatórios; `short` é o rótulo curto (ex.: `v1.0`) e
+`sort_order` a ordem.
+
+## 8. Regras de preenchimento
+
+Seis regras. Todas já causaram problema real.
+
+### 1. Datas: sempre `YYYY-MM-DD`
+
+As colunas são do tipo `date`. Grave `'2026-08-01'`. A tela converte para
+`dd/mm/aaaa` sozinha — **não grave no formato brasileiro**.
+
+O ano é sempre exibido na interface porque o projeto atravessa a virada de 2026
+para 2027, e `01/08` sem ano seria ambíguo.
+
+### 2. Vazio: `NULL` para datas e vínculos, `''` para texto
+
+Esta é a regra que mais confunde. As colunas de texto são `not null default ''`;
+as de data e de vínculo aceitam `NULL`.
+
+| Quer dizer "vazio" em… | Use | Nunca use |
+|---|---|---|
+| `start_date`, `end_date` | `NULL` | `''` (erro de tipo) |
+| `block_id`, `phase_id`, `people.area_id` | `NULL` | `''` (viraria FK inválida) |
+| `who`, `dependency`, `theme`, `short`, `role`, `responsibility` | `''` | `NULL` (viola `not null`) |
+
+### 3. `who` é o NOME da pessoa, não o id
+
+Não existe chave estrangeira entre `tasks` e `people`. O responsável é gravado
+como **texto com o nome**:
+
+```sql
+-- CORRETO
+update tasks set who = 'Victor' where id = 't10';
+
+-- ERRADO: grava o id como se fosse nome; a tela mostra "p6" como responsável
+update tasks set who = 'p6' where id = 't10';
+```
+
+O nome precisa casar **exatamente** com `people.name` (ignorando espaços nas
+pontas) para que a pessoa apareça na "Conclusão de tarefas por pessoa". `'victor'`
+minúsculo **não** casa com `'Victor'`.
+
+Duas consequências desse desenho:
+
+- **Renomear uma pessoa exige atualizar as tarefas dela.** Se você mudar
+  `people.name` de `'Victor'` para `'Victor Silva'` e não atualizar `tasks.who`,
+  as tarefas ficam órfãs: continuam mostrando "Victor", mas a pessoa desaparece
+  do gráfico de conclusão. Ver a receita em §9.
+- **Existem responsáveis que não são pessoas cadastradas.** Algumas tarefas têm
+  `who = 'Jurídico'`, apontando um departamento. Isso é aceito e aparece no filtro
+  de responsável. Não "conserte" isso.
+
+### 4. O patrocinador é identificado pelo campo `role`
+
+A tela do patrocinador não usa nome fixo. Ela procura, entre as pessoas:
+
+1. alguém com **"sponsor"** no papel; se não achar,
+2. alguém com **"patrocinador"** no papel que **não** contenha "técnico".
+
+Hoje isso resolve para o **Edinho** (`Patrocinador (Sponsor)`). O Felipe é
+`Diretor de TI · Patrocinador técnico` e é deliberadamente excluído.
+
+**Se você editar papéis, cuidado:** apagar a palavra "Sponsor" do papel do Edinho
+faz a seção "Decisões que dependem de você" esvaziar. Colocar "Sponsor" no papel
+de outra pessoa transfere a seção para ela.
+
+As "decisões" são as tarefas onde `who` = nome do patrocinador e o status **não**
+é `pronto` nem `entregue`.
+
+### 5. Ids são seus para definir
+
+As colunas `id` são texto e **não têm geração automática**. Você precisa fornecer
+um valor único.
+
+Convenções que já existem no banco, ambas aceitas:
+
+- Legíveis, dos dados iniciais: `t1`…`t24`, `b1`…`b4`, `dev`, `juridico`, `v1.0`
+- Gerados pela interface: `t_a1b2c3d4e5f6`, `b_9f8e7d6c5b4a`
+
+Sugestão para o seu trabalho: use prefixos legíveis e previsíveis (`t_`, `b_`,
+`p_`, `a_`, `f_`) mais algo único. Nada no sistema depende do formato — só da
+unicidade.
+
+### 6. `sort_order` só importa em pessoas, áreas e fases
+
+Nessas três, define a ordem de exibição. Em `blocks`, a tela ordena
+**cronologicamente pela data de início**, então `sort_order` é praticamente
+decorativo. Se não souber o que pôr, use `0`.
+
+## 9. Receitas: criar, alterar, excluir
+
+Um comando por receita. Assumem `set search_path to meu_inc_app;`.
+
+### Criar uma tarefa
+
+```sql
+insert into tasks
+  (id, description, area_id, block_id, who, priority_id, status_id,
+   start_date, end_date, dependency)
+values
+  ('t_login_biometria',
+   'Implementar login por biometria',
+   'dev',                 -- precisa existir em areas
+   'b1',                  -- ou NULL para "sem bloco"
+   'Victor',              -- NOME da pessoa, ou '' para sem responsável
+   'alta',                -- alta | media | baixa
+   'planejado',           -- um dos 7 status
+   '2026-08-10',          -- ou NULL
+   '2026-08-28',          -- ou NULL
+   '');                   -- '' = sem trava
+```
+
+Mínimo indispensável (o resto tem default):
+
+```sql
+insert into tasks (id, description, area_id, status_id)
+values ('t_exemplo', 'Descrição da tarefa', 'dev', 'backlog');
+```
+
+### Criar um bife
+
+```sql
+insert into blocks (id, name, theme, start_date, end_date, color, phase_id, sort_order)
+values
+  ('b_notificacoes',
+   'Notificações',
+   'Push, e-mail e WhatsApp: lembretes de vencimento e avisos de obra.',
+   '2026-10-14',
+   '2026-11-02',          -- ATENÇÃO: se for a maior data de fim, muda a
+                          -- data de entrega do PROJETO
+   '#8B5CF6',
+   'v2.0',
+   5);
+```
+
+Efeitos colaterais desta inserção, todos automáticos:
+- o total de dias do projeto aumenta em 20;
+- o bife entra na linha do tempo do patrocinador (tem as duas datas);
+- aparece como **cinza / "Sem tarefas"** até receber a primeira tarefa;
+- se `2026-11-02` for a maior data de fim, a **entrega do projeto** passa a ser
+  essa, e o contador de "dias restantes" muda.
+
+### Criar uma pessoa
+
+```sql
+insert into people (id, name, role, responsibility, area_id, sort_order)
+values ('p_ana', 'Ana Souza', 'Designer de produto',
+        'Protótipos e design system do app.', 'dev', 11);
+```
+
+Ela só aparece no gráfico de conclusão depois de ter ao menos uma tarefa com
+`who = 'Ana Souza'`.
+
+### Criar uma área
+
+```sql
+insert into areas (id, name, color, sort_order)
+values ('marketing', 'Marketing', '#0EA5E9', 6);
+```
+
+### Criar uma fase
+
+```sql
+insert into phases (id, name, short, sort_order)
+values ('v5.0', 'v5.0 · Expansão regional', 'v5.0', 5);
+```
+
+### Mover uma tarefa de status
+
+O equivalente a arrastar o cartão no Kanban:
+
+```sql
+update tasks set status_id = 'entregue' where id = 't_login_biometria';
+```
+
+### Trocar o responsável
+
+```sql
+update tasks set who = 'Rafael Soares' where id = 't_login_biometria';
+```
+
+Para deixar sem responsável, use `''` — **não** `NULL`.
+
+### Marcar ou limpar uma trava
+
+```sql
+-- travar
+update tasks set dependency = 'depende de contrato com o fornecedor'
+where id = 't_login_biometria';
+
+-- destravar
+update tasks set dependency = '' where id = 't_login_biometria';
+```
+
+### Mudar as datas de um bife (e a entrega do projeto)
+
+```sql
+update blocks set start_date = '2026-10-20', end_date = '2026-11-14'
+where id = 'b_notificacoes';
+```
+
+Garanta que `end_date >= start_date`. Datas invertidas produzem duração 0 e o bife
+some da barra de tempo (fica com largura zero).
+
+### Renomear uma pessoa — DUAS operações, nesta ordem
+
+Não pule a segunda, ou as tarefas ficam órfãs (§8, regra 3).
+
+```sql
+-- 1) atualiza as tarefas primeiro, casando pelo nome ANTIGO
+update tasks set who = 'Victor Almeida' where who = 'Victor';
+```
+
+```sql
+-- 2) só então renomeia a pessoa
+update people set name = 'Victor Almeida' where id = 'p6';
+```
+
+### Excluir uma tarefa
+
+Sem consequências, nada depende dela:
+
+```sql
+delete from tasks where id = 't_login_biometria';
+```
+
+### Excluir um bife — DUAS operações, nesta ordem
+
+As tarefas do bife **não** devem ser apagadas: elas ficam sem bloco. E a ordem
+importa, porque existe um vínculo de `tasks` para `blocks`:
+
+```sql
+-- 1) solta as tarefas
+update tasks set block_id = NULL where block_id = 'b_notificacoes';
+```
+
+```sql
+-- 2) agora o bloco pode ser apagado
+delete from blocks where id = 'b_notificacoes';
+```
+
+Se você tentar o `delete` primeiro, o banco recusa com erro de chave estrangeira
+(`23503`). Não é bug — é a proteção funcionando.
+
+### Excluir uma fase — mova os blocos antes
+
+```sql
+-- 1) tira os blocos da fase
+update blocks set phase_id = NULL where phase_id = 'v5.0';
+```
+
+```sql
+-- 2) apaga a fase
+delete from phases where id = 'v5.0';
+```
+
+### Excluir uma área — mova as tarefas antes
+
+`tasks.area_id` é **obrigatório**, então não existe "sem área" para tarefa: você
+tem de realocá-las.
+
+```sql
+-- 1) realoca as tarefas para outra área existente
+update tasks set area_id = 'dev' where area_id = 'marketing';
+```
+
+```sql
+-- 2) apaga a área. As pessoas ligadas a ela ficam sem área automaticamente.
+delete from areas where id = 'marketing';
+```
+
+### Excluir uma pessoa
+
+```sql
+delete from people where id = 'p_ana';
+```
+
+As tarefas dela **continuam** com o nome no campo `who` — de propósito, para
+preservar o histórico. Se quiser limpar:
+
+```sql
+update tasks set who = '' where who = 'Ana Souza';
+```
+
+### Ordem geral para apagar muitos dados
+
+Se precisar limpar o projeto, respeite esta ordem por causa dos vínculos:
+
+```
+tasks  →  blocks  →  phases  →  people  →  areas
+```
+
+E **preserve `statuses` e `priorities`** — são referência, não conteúdo. Sem elas
+nenhuma tarefa pode ser criada depois.
+
+## 10. O que NUNCA fazer
+
+Lista curta e séria. Os três primeiros itens **quebram a tela**, não só deixam
+dado feio.
+
+### 1. Nunca invente um `status_id`
+
+Somente estes sete: `discovery`, `backlog`, `planejado`, `execucao`, `validacao`,
+`pronto`, `entregue`.
+
+O banco vai aceitar qualquer valor que exista na tabela `statuses` — mas a
+aplicação lê nome e cor dos status **do próprio código**, casando pelo id. Um id
+que o código não conhece faz a tela do quadro **quebrar com erro de JavaScript**,
+não apenas exibir estranho.
+
+Ou seja: inserir uma linha nova em `statuses` e usá-la numa tarefa **derruba o
+painel**. Criar status novo exige alteração de código — o que está fora do seu
+escopo.
+
+### 2. Nunca invente um `priority_id`
+
+Somente `alta`, `media`, `baixa`. Mesmo motivo, mesmo efeito.
+
+Repare que é `media` **sem acento**.
+
+### 3. Nunca aponte `area_id` para uma área que não existe
+
+O banco barra (é chave estrangeira), mas vale saber por quê: `area_id` é
+obrigatório e a tela usa a cor da área em vários lugares.
+
+### 4. Nunca grave data no formato brasileiro
+
+`'01/08/2026'` não é um `date` válido. Use `'2026-08-01'`.
+
+### 5. Nunca use `NULL` em coluna de texto
+
+`who`, `dependency`, `theme`, `short`, `role`, `responsibility` são `not null`.
+Para vazio, use `''`.
+
+### 6. Nunca grave o id da pessoa em `tasks.who`
+
+É o nome. Ver §8, regra 3.
+
+### 7. Nunca trabalhe no banco `dpto_processos`
+
+É o espelho errado. Confirme com `select current_database();`. Ver §6.
+
+### 8. Não conte com validação da aplicação
+
+Todas as proteções da interface — não deixar excluir área com tarefas, não aceitar
+fim antes do início, exigir descrição — vivem **na tela**. Escrevendo direto no
+banco você passa por cima delas. As únicas proteções que continuam valendo são as
+do próprio banco: chaves estrangeiras, `not null` e tipos.
+
+## 11. Como conferir que deu certo
+
+### Confirmação básica de contexto
+
+```sql
+select current_database(), current_schema(), current_user;
+```
+
+### Panorama do projeto
 
 ```sql
 select
-  (select coalesce(json_agg(x order by x."id"), '[]'::json)
-     from (select "id","description",… from "meu_inc_app"."tasks") x) as "tasks",
-  (select coalesce(json_agg(x order by x."sort_order"), '[]'::json)
-     from (select … from "meu_inc_app"."blocks") x) as "blocks",
-  …
+  (select count(*) from tasks)  as tarefas,
+  (select count(*) from blocks) as bifes,
+  (select count(*) from people) as pessoas,
+  (select count(*) from areas)  as areas,
+  (select count(*) from phases) as fases;
 ```
 
-A lista de colunas vem de `TABLES[t].columns` — o contrato e a consulta não podem
-divergir.
+### Os números que a tela vai mostrar
 
-**Efeito colateral importante e desejado:** passando por `json_agg`, colunas
-`date` chegam como **string ISO** (`"2026-08-01"`). Se fossem lidas pelo caminho
-normal do driver, viriam como objeto `Date` do JavaScript e quebrariam os
-mapeadores, que esperam string. Não troque essa consulta por 5 `SELECT`s simples
-sem tratar isso.
-
-```ts
-export interface Bootstrap {
-  configured: boolean;   // false = servidor sem PGHOST/DATABASE_URL → modo demo
-  tasks: TaskRow[]; blocks: BlockRow[]; people: PersonRow[];
-  areas: AreaRow[]; phases: PhaseRow[];
-}
+```sql
+select
+  count(*)                                              as total,
+  count(*) filter (where status_id = 'entregue')        as entregues,
+  count(*) filter (where status_id in ('execucao','validacao','pronto')) as andamento,
+  count(*) filter (where dependency <> '')              as travadas,
+  round(100.0 * count(*) filter (where status_id = 'entregue') / nullif(count(*),0)) as pct_conclusao
+from tasks;
 ```
 
-### 5.5 Escritas: lote ordenado, em transação
+Compare com os quatro KPIs do Dashboard. Se divergir, você olhou o banco errado
+ou a página não foi recarregada.
 
-`runOps(ops)` executa **na ordem recebida, dentro de `begin`/`commit`**, com
-`rollback` em qualquer falha.
+### Duração total e data de entrega do projeto
 
-Isso não é enfeite. `tasks.block_id` referencia `blocks(id)` **sem `on delete`**,
-então apagar um bloco exige soltar as tarefas dele antes. Como duas requisições
-HTTP separadas, a ordem não é garantida e o delete falha por chave estrangeira.
-Por isso `deleteBlock` manda as duas operações num lote:
-
-```ts
-persist(upd("tasks", { block_id: null }, "block_id", id), del("blocks", "id", id));
+```sql
+select
+  sum(end_date - start_date + 1)  as total_dias,
+  min(start_date)                 as inicio,
+  max(end_date)                   as entrega_prevista,
+  max(end_date) - current_date    as dias_restantes
+from blocks
+where start_date is not null and end_date is not null;
 ```
 
-Geração de SQL (`buildSql`), sempre com identificadores validados e valores
-parametrizados:
+O `+ 1` é a contagem inclusiva (§5).
 
-| op | SQL |
+### Caça a problemas — todas estas consultas devem devolver ZERO linhas
+
+```sql
+-- status inválido (quebraria a tela)
+select id, status_id from tasks
+where status_id not in ('discovery','backlog','planejado','execucao','validacao','pronto','entregue');
+```
+
+```sql
+-- prioridade inválida
+select id, priority_id from tasks where priority_id not in ('alta','media','baixa');
+```
+
+```sql
+-- responsável que não é pessoa cadastrada (pode ser intencional, ex.: 'Jurídico',
+-- mas confira se não é erro de digitação ou id gravado como nome)
+select distinct t.who from tasks t
+where t.who <> '' and not exists (select 1 from people p where trim(p.name) = trim(t.who));
+```
+
+```sql
+-- bife com datas invertidas ou incompletas (sai da linha do tempo)
+select id, name, start_date, end_date from blocks
+where (start_date is null) <> (end_date is null)
+   or (start_date is not null and end_date < start_date);
+```
+
+```sql
+-- tarefas que terminam depois da entrega prevista (aparecem como desalinhamento)
+select id, description, end_date from tasks
+where end_date > (select max(end_date) from blocks where end_date is not null);
+```
+
+```sql
+-- há patrocinador identificável? deve devolver exatamente 1 linha
+select id, name, role from people
+where role ilike '%sponsor%'
+   or (role ilike '%patrocinador%' and role not ilike '%técnic%' and role not ilike '%tecnic%');
+```
+
+### Por último: recarregue a página
+
+Nenhuma alteração aparece sem recarregar. Se ainda não aparecer, verifique o selo
+no topo do painel: **"Ao vivo"** (verde) significa que ele está lendo o banco;
+**"Modo demo"** (âmbar) significa que ele **não** conseguiu conectar e está
+mostrando dados fictícios de demonstração — nesse caso, nada que você grave vai
+aparecer, e o problema é de configuração/rede, não seu.
+
+## 12. Referência rápida
+
+### Status (os 7 válidos)
+
+| `status_id` | Nome | Conta como… |
+|---|---|---|
+| `discovery` | Discovery | — |
+| `backlog` | Backlog | — |
+| `planejado` | Planejado | — |
+| `execucao` | Em execução | andamento |
+| `validacao` | Em validação | andamento |
+| `pronto` | Pronto p/ entrega | andamento + "entregue recentemente" |
+| `entregue` | Entregue | **concluído** |
+
+### Prioridades (as 3 válidas)
+
+`alta` · `media` (sem acento) · `baixa`
+
+### Áreas iniciais
+
+| `id` | Nome | Cor |
+|---|---|---|
+| `dev` | Desenvolvimento | `#F97316` |
+| `juridico` | Jurídico | `#3B82F6` |
+| `cobranca` | Cobrança | `#8B5CF6` |
+| `financeiro` | Financeiro | `#10B981` |
+| `parcerias` | Parcerias | `#EC4899` |
+
+### Fases iniciais
+
+`v1.0` Base sólida · `v2.0` Reter & renegociar · `v3.0` Receita recorrente ·
+`v4.0` Plataforma financeira
+
+### Vazio: qual usar
+
+| Coluna | Vazio é |
 |---|---|
-| insert | `insert into "schema"."t" ("a","b") values ($1,$2)` |
-| update | `update "schema"."t" set "a" = $1 where "c" = $2` |
-| delete | `delete from "schema"."t" where "c" = $1` |
+| `start_date`, `end_date` | `NULL` |
+| `block_id`, `phase_id`, `people.area_id` | `NULL` |
+| `who`, `dependency`, `theme`, `short`, `role`, `responsibility` | `''` |
+| `tasks.area_id` | **não existe vazio** — é obrigatório |
 
-`where.value === null` gera `is null` em vez de `= $n`.
+### Operações que exigem dois comandos, na ordem
 
-Validação (`parseOps`) rejeita, com 400: tabela fora da whitelist, coluna não
-gravável, filtro não permitido, valor não primitivo, operação desconhecida, lote
-vazio, `values` vazio, lote com mais de 50 operações.
-
-### 5.6 Pool e TLS
-
-```ts
-// singleton no globalThis: sobrevive ao hot-reload do next dev e é reaproveitado
-// entre invocações quentes da mesma instância serverless
-const g = globalThis as typeof globalThis & { __incDb?: { pool: Pool; schema: string } | null };
-```
-
-Parâmetros: `max: 4` (configurável por `PGPOOL_MAX`), `idleTimeoutMillis: 10s`,
-`connectionTimeoutMillis: 10s`, `statement_timeout: 15s`,
-`application_name: "meu-inc-app"`. Há um listener `pool.on("error")` — sem ele,
-um erro em cliente ocioso derruba o processo.
-
-#### ⚠️ A armadilha do `sslmode` — leia antes de debugar conexão
-
-O `pg` **não segue a semântica do libpq**. `?sslmode=require` numa connection
-string é tratado como **`verify-full`**, isto é, ele valida a cadeia do
-certificado. Num Postgres self-hosted com certificado autoassinado isso derruba a
-conexão com:
-
-```
-error: self-signed certificate (DEPTH_ZERO_SELF_SIGNED_CERT)
-```
-
-…que **parece credencial errada, e não é**. Por isso `server.ts` remove `sslmode`
-da connection string (`stripSslParams`) e decide o TLS **só** por `PGSSLMODE`:
-
-| `PGSSLMODE` | `ssl` passado ao pg | Semântica |
+| Operação | 1º | 2º |
 |---|---|---|
-| `require` (padrão) | `{ rejectUnauthorized: false }` | cifra, **não** valida certificado — igual ao libpq/pgAdmin |
-| `verify-ca` / `verify-full` | `{ rejectUnauthorized: true }` | cifra e valida a cadeia |
-| `disable` | `false` | sem TLS |
-
-Não "conserte" isso passando o `sslmode` adiante. A remoção é a correção.
-
-### 5.7 Mensagens de erro (`dbErrorMessage`)
-
-Traduz códigos do driver/Postgres para português acionável:
-
-| Código | Mensagem |
-|---|---|
-| `ETIMEDOUT`, `ECONNREFUSED`, `EHOSTUNREACH`, `ENOTFOUND` | Banco inacessível — confira host/porta e se a rede de saída libera a porta |
-| `28P01` | Usuário ou senha inválidos |
-| `3D000` | Banco de dados não encontrado |
-| `42P01` | Tabela não encontrada — o schema existe? |
-| `42501` | Sem permissão |
-| `23503` | Violação de vínculo (FK) |
-| `23505` | Registro duplicado |
-| contém `certificate` | Falha de TLS + dica do `PGSSLMODE` |
-
-Ao adicionar tratamento de erro novo, estenda esta função — não espalhe strings
-pelos componentes.
-
-### 5.8 Cliente do browser (`lib/db/client.ts`)
-
-```ts
-export async function loadAll(): Promise<Bootstrap>          // LANÇA em falha
-export async function mutate(ops: DbOp[]): Promise<{ error: DbError | null }>  // NUNCA lança
-```
-
-Assimetria proposital: a carga lança para o store decidir o fallback; a escrita
-devolve `{error}` porque a UI já foi atualizada de forma otimista e só precisa
-registrar a falha. Timeout do cliente: 30s — maior que o do servidor (10s de
-conexão + 15s de statement), para a mensagem do banco chegar à tela em vez de ser
-cortada por um abort genérico.
-
-### 5.9 Exposição / segurança
-
-O painel **não tem login** — e também não tinha no Supabase, onde as policies eram
-`using(true)` para o papel anônimo. O que melhorou na migração é que a credencial
-saiu do browser e a superfície ficou restrita ao contrato de `tables.ts`.
-
-**Se você for adicionar autenticação, o gate é `app/api/data/route.ts`.** Não
-tente proteger no cliente.
-
----
-
-## 6. Store: estado e mutações
-
-`lib/store.tsx` — Context Provider único. Acesso por `useStore()`, que lança se
-usado fora do `<StoreProvider>`.
-
-### 6.1 Estado
-
-```ts
-tasks: Task[]  ·  blocks: Bloco[]  ·  people: Person[]
-areas: Area[]  ·  phases: Fase[]
-filteredTasks: Task[]        // memoizado; tasks + filtros aplicados
-loading: boolean
-dataSource: "loading" | "db" | "demo"
-dbError: { kind: "load" | "save"; message: string } | null
-search · areaFilter · blockFilter · whoFilter · statusFilter
-hasActiveFilters: boolean  ·  clearFilters()
-modal · blockModal · personModal · areaModal · phaseModal  (ModalState)
-```
-
-`ModalState = { mode: "new" } | { mode: "edit"; id: string } | null`.
-
-### 6.2 Ciclo de vida da carga
-
-```
-monta → dataSource "loading", tudo vazio, loading true
-        │
-        ├─ loadAll() OK e configured:true  → popula, dataSource "db"
-        ├─ loadAll() OK e configured:false → dados estáticos, "demo", SEM erro
-        └─ loadAll() lança                 → dados estáticos, "demo", COM dbError{kind:"load"}
-```
-
-Os três estados são visíveis na interface: selo **Ao vivo** (verde) ou **Modo
-demo** (âmbar) no `Topbar`, e um toast com o motivo quando há `dbError`.
-
-O caso "configured:false" **não** mostra erro: rodar sem banco é um modo válido
-(demo), não uma falha. Já a falha de carga mostra o motivo — modo demo silencioso
-já custou horas de depuração neste projeto, então não volte a esconder.
-
-### 6.3 Escritas otimistas
-
-```ts
-const canPersist = dataSource === "db";
-
-const persist = (...ops: DbOp[]) => {
-  if (!canPersist || ops.length === 0) return;
-  mutate(ops).then(({ error }) => {
-    if (error) { console.error("[db]", error.message);
-                 setDbError({ kind: "save", message: error.message }); }
-  });
-};
-```
-
-Padrão de toda mutação: **atualiza o estado local primeiro, depois chama
-`persist`**. A tela nunca espera a rede. Em modo demo, `persist` não faz nada —
-gravar ali criaria estado misturado e avisos enganosos.
-
-### 6.4 Tabela de mutações
-
-| Função | Estado local | Persistência |
-|---|---|---|
-| `addTask(input)` | acrescenta com `makeId("t")` | `ins("tasks", {id, ...taskToRow})` |
-| `updateTask(id, patch)` | substitui | `upd("tasks", taskToRow, "id", id)` |
-| `deleteTask(id)` | remove + fecha modal | `del("tasks","id",id)` |
-| `moveTask(id, status)` | troca status | `upd("tasks",{status_id},"id",id)` |
-| `addBlock(input)` | acrescenta | `ins("blocks", …, sort_order = blocks.length)` |
-| `updateBlock(id, patch)` | substitui | `upd("blocks", …, "id", id)` |
-| `deleteBlock(id)` | tarefas ficam `blockId:""`, bloco sai, limpa filtro | **lote:** `upd(tasks, block_id=null, block_id=id)` **+** `del(blocks,id)` |
-| `addPerson(input)` | acrescenta | `ins("people", …)` |
-| `updatePerson(id, patch)` | substitui; se o nome mudou, renomeia `who` das tarefas e o filtro | `upd(people)` **+** `upd(tasks, who=novo, who=antigo)` se renomeou |
-| `deletePerson(id)` | remove | `del("people","id",id)` |
-| `addArea` / `updateArea` | análogos | análogos |
-| `deleteArea(id)` | pessoas da área ficam `area:""`, área sai, limpa filtro | `del("areas","id",id)` — o banco cuida das pessoas via `on delete set null` |
-| `addPhase` / `updatePhase` | análogos | análogos |
-| `deletePhase(id)` | remove | `del("phases","id",id)` |
-
-### 6.5 Geração de ids
-
-```ts
-function makeId(prefix: string): string {
-  const rnd = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
-  return `${prefix}_${rnd.replace(/-/g, "").slice(0, 12)}`;
-}
-```
-
-Ids são gerados **no cliente**, não pelo banco (as colunas `id` são `text primary
-key` sem default). Prefixos: `t_` tarefa, `b_` bloco, `p_` pessoa, `a_` área,
-`f_` fase. Os dados de semente usam ids legíveis (`t1`, `b1`, `dev`, `v1.0`) — as
-duas formas coexistem, e nada no código depende do formato do id.
-
-### 6.6 ⚠️ Efeito colateral em updater de estado: não faça
-
-Bug já corrigido, que volta fácil. Isto está **errado**:
-
-```ts
-// ERRADO — StrictMode invoca o updater duas vezes → dois inserts com o mesmo id
-setBlocks((prev) => {
-  persist(ins("blocks", { id, ...blockToRow(input, prev.length) }));
-  return [...prev, { id, ...input }];
-});
-```
-
-Correto — o `sort_order` sai do valor de render, e a escrita fica fora do updater:
-
-```ts
-setBlocks((prev) => [...prev, { id, ...input }]);
-persist(ins("blocks", { id, ...blockToRow(input, blocks.length) }));
-```
-
-`reactStrictMode: true` está ligado em `next.config.mjs`, então o bug aparece em
-desenvolvimento. Mesma correção vale para `setTasks` dentro de `setPeople`.
-
----
-
-## 7. `derive.ts`: toda a lógica de cálculo
-
-Todas as funções são **puras**. As que dependem de áreas/fases/projeto aceitam
-esses parâmetros com default para os estáticos de `data.ts` — o default existe
-para testes e chamadas legadas; **os componentes sempre passam os valores do
-store**, porque áreas e fases são editáveis.
-
-### 7.1 Utilitários internos (não exportados)
-
-```ts
-const fmt = (d: string): string      // "2026-08-01" → "01/08/2026"; "" → ""
-function toTime(iso: string): number | null          // meia-noite local; null se vazio/inválido
-function inclusiveDays(start, end): number           // 1 = mesmo dia; 0 se faltar ou invertido
-const blockMapOf / areaMapOf                         // id → objeto
-function chronological(blocks): Bloco[]              // por start, depois end; sem data ao fim
-function blocksWindow(blocks, project): {start, spanDays}  // janela da timeline
-function findSponsor(people) / decisionTasks(tasks, people)
-```
-
-`fmt` faz `split("-")` — depende de entrada `yyyy-mm-dd`. Não passe outro formato.
-
-`inclusiveDays` é **inclusivo**: 16/07 a 19/08 = 35 dias, não 34. É assim que a
-semente fecha 35 + 30 + 15 + 10 = 90.
-
-### 7.2 API pública
-
-| Função | Assinatura resumida | O que faz |
-|---|---|---|
-| `areaMapOf` | `(areas) → Record<id, Area>` | mapa para lookup |
-| `decorate` | `(tk, blockMap, areaMap) → DecoratedTask` | enriquece uma tarefa para render |
-| `getBoard` | `(tasks, blocks, areas?) → BoardColumn[]` | 7 colunas na ordem de `STATUSES`, com `count` e `empty` |
-| `getGrouped` | `(tasks, blocks, areas?) → GroupedArea[]` | agrupa por área; **omite áreas sem tarefa** |
-| `getKpis` | `(tasks, people?) → Kpis` | `{total, andamento, entregue, travadas, pct, decisions}` |
-| `getAreaDist` | `(tasks, areas?) → AreaDistRow[]` | barra empilhada por área; rótulo só se o segmento > 9% |
-| `getLegend` | `() → {name,color}[]` | legenda de status |
-| `getBlocks` | `(tasks, blocks, areas?, phases?, project?) → BlockRow[]` | a função mais rica: semáforo, %, posição na timeline, distribuição por área |
-| `getBlocksSummary` | `(blocks) → {totalDays, startDate, endDate}` | soma das durações + extremos |
-| `getMilestones` | `(tasks, blocks, todayIso) → MilestoneLine` | linha do tempo de marcos |
-| `getRisks` | `(tasks, areas?) → RiskRow[]` | tarefas com `dep` |
-| `getDecisions` | `(tasks, people, areas?) → DecisionRow[]` | tarefas do sponsor ainda abertas, numeradas |
-| `getDelivered` | `(tasks, areas?) → DeliveredRow[]` | `entregue` **ou** `pronto` |
-| `getPeople` | `(people, areas?) → PersonRow[]` | pessoas com avatar e área resolvida |
-| `getPeopleProgress` | `(tasks, people) → PersonProgress[]` | % concluído por pessoa |
-
-### 7.3 `getBlocks` — semáforo e timeline
-
-Semáforo, na ordem exata de avaliação (a última condição vence):
-
-```ts
-let lampColor = "#10B981", txt = "No ritmo";           // verde
-if (blocked > 0 && pc < 50)      { lampColor = "#EF4444"; txt = "Em risco"; }   // vermelho
-else if (blocked > 0 || pc < 40) { lampColor = "#F59E0B"; txt = "Atenção"; }    // âmbar
-if (items.length === 0)          { lampColor = THEME.inkFaint; txt = "Sem tarefas"; }  // cinza
-```
-
-`pc` = % de tarefas `entregue` no bloco. Um bloco vazio é sempre cinza, mesmo que
-as condições anteriores tenham disparado.
-
-Posição na timeline: `offsetPct` e `widthPct` são calculados sobre a janela de
-`blocksWindow`, com clamp para não estourar 0–100%. Blocos sem data recebem
-`offset` 0 e `width` 0 — ficam com largura zero, invisíveis na barra. (Já houve
-teste de UI quebrado por isso: um seletor de texto casou com o segmento de largura
-zero em vez do card. Ao testar, ancore em `h3`, não em texto solto.)
-
-`bife` é o índice 1-based **na ordem cronológica**, não a ordem de inserção.
-
-### 7.4 `getMilestones` — a linha do patrocinador
-
-Só considera blocos com **início e fim** preenchidos (`dated`). Sem nenhum,
-devolve um objeto vazio com `segs: []` e todos os números em 0/null.
-
-```ts
-export interface MilestoneLine {
-  segs: MilestoneSeg[];
-  startLabel: string;      // dd/mm/aaaa do primeiro início
-  endLabel: string;        // dd/mm/aaaa da entrega
-  deliveryDate: string;    // ISO — fim do ÚLTIMO bife
-  todayPct: number | null; // posição de hoje (null se fora da janela)
-  daysLeft: number | null; // negativo = atrasado
-  tasksBeyond: number;     // tarefas que terminam DEPOIS da entrega prevista
-  totalDays: number;
-  progressPct: number | null;
-}
-```
-
-**Decisão de produto importante:** a data de entrega do projeto é o **fim do
-último bife** — o plano é o compromisso. Não é a data da última tarefa. Tarefas
-que passam desse limite não movem a data: são contadas em `tasksBeyond` e
-sinalizadas, para o desalinhamento ficar visível em vez de ser escondido. Se
-alguém pedir "a data deveria seguir a última tarefa", isso é uma mudança de
-produto, não um bug.
-
-`labelTop: i % 2 === 0` — as caixas alternam acima/abaixo da linha.
-
-`delivered` de um segmento é `items.length > 0 && items.every(entregue)`: um bloco
-**sem tarefas não conta como entregue**.
-
-`tasksBeyond` compara strings ISO (`tk.end > deliveryDate`), o que é válido para
-`yyyy-mm-dd` — ordem lexicográfica coincide com ordem cronológica. Não troque por
-comparação de `Date` sem motivo.
-
-### 7.5 `getPeopleProgress`
-
-Casa tarefa e pessoa por **nome** (`tk.who.trim() === p.name.trim()`), filtra quem
-tem `total > 0` e ordena por `pct` desc, desempatando por `total` desc.
-Recalcula sozinho conforme tarefas entram e saem.
-
----
-
-## 8. Telas e componentes
-
-### 8.1 Shell (`app/page.tsx`)
-
-Mantém `view` e `sub` em `useState` — **não há roteamento**, é uma SPA de página
-única. `TITLES: Record<View, [string, string]>` guarda título e subtítulo de cada
-tela. Enquanto `loading`, renderiza `<Loader/>` no lugar do conteúdo. Os 5 modais
-e o `DbErrorToast` ficam sempre montados (cada um decide se aparece).
-
-### 8.2 Quadro de execução (`board`)
-
-`BoardControls` (exportado de `BoardView.tsx`) renderiza o toggle Kanban/Por área
-e 4 filtros. Detalhe do filtro de responsável: as opções são a união de pessoas
-cadastradas (menos "A definir") **e** nomes que já aparecem em `tk.who` — isso
-preserva valores legados como "Jurídico", que não é uma pessoa cadastrada.
-
-`KanbanBoard` implementa drag-and-drop com a API HTML5 nativa (`draggable`,
-`onDragStart`, `onDragOver`, `onDrop`), estado local `dragId`/`overCol`, e chama
-`moveTask(id, status)` no drop. `onDragLeave` só limpa o destaque se o ponteiro
-realmente saiu da coluna (`!e.currentTarget.contains(e.relatedTarget)`).
-
-> Testar drag-and-drop HTML5 headless é pouco confiável. Valide despachando
-> `DragEvent`s manualmente com um `DataTransfer`, ou teste `moveTask` direto.
-
-`TaskCard` mostra descrição, datas, dependência, área e avatar do responsável.
-**Bloco e prioridade foram deliberadamente removidos do card** — seguem no
-detalhe. Não os traga de volta sem pedido explícito.
-
-### 8.3 Blocos (`blocks`)
-
-`BlocosView` tem dois modos no mesmo componente, controlados por
-`detailId: string | null`: lista de cards e detalhe de um bloco. Consome
-`getBlocks` e `getBlocksSummary`. O rodapé mostra o **total de dias somado dos
-blocos** — número dinâmico, não os 90 fixos.
-
-### 8.4 Dashboard (`dash`)
-
-4 `KpiCard` + `getAreaDist` (barra empilhada + legenda) + `getBlocks` (semáforo) +
-`getPeopleProgress` (barras de conclusão por pessoa) + `getRisks` (travas).
-
-A barra de progresso usa um truque de gradiente: o fundo é maior que o elemento e
-`backgroundSize` é ajustado para que o gradiente inteiro corresponda a 100%,
-mantendo a cor consistente em qualquer percentual.
-
-```tsx
-backgroundImage: "linear-gradient(90deg, #564FFD 0%, #8B5CF6 45%, #D11174 100%)",
-backgroundSize: `${p > 0 ? 10000 / p : 100}% 100%`,
-```
-
-### 8.5 Visão do patrocinador (`sponsor`)
-
-A tela mais complexa. Componentes internos: `MilestoneCard` (timeline com caixas
-alternadas e rabicho rotacionado 45°), `RingCard` genérico, `CountdownRing`
-(dias restantes) e `ConclusionRing` (% de conclusão). Os anéis usam
-`stroke-dasharray`/`strokeDashoffset` em SVG.
-
-**Detalhe de hidratação:** `todayIso` é preenchido num `useEffect`, não no render
-inicial. Isso é intencional — calcular a data no render causaria divergência entre
-servidor e cliente. Enquanto `todayIso` é `""`, `heroMilestone` é `null` e os
-anéis não renderizam. Não "simplifique" movendo a data para o render.
-
-Os dois anéis são **irmãos** do card de cabeçalho, num flex row — não filhos dele.
-Já foram colocados dentro e o `overflow-hidden` do card cortava a legenda.
-
-### 8.6 Pessoas & papéis (`people`)
-
-Três seções num componente: tabela de pessoas, **Áreas** e **Fases do roadmap**
-(estas duas com `SectionHead({title, onAdd, addLabel})`). Os pesos de fonte aqui
-foram deliberadamente suavizados (semibold em vez de extrabold) — foi pedido
-explicitamente. Não "reforce" a tipografia desta tela.
-
-### 8.7 Modais
-
-Padrão comum a todos os cinco: overlay `.modal-overlay` que fecha no clique,
-painel `.modal-panel` com `stopPropagation`, `useEffect` sincronizando o
-formulário quando o modal abre, e exclusão em dois passos (`confirmDelete`).
-
-Regras de validação e de exclusão:
-
-| Modal | Exige | Guarda de exclusão |
-|---|---|---|
-| `TaskModal` | `desc` não vazia | livre |
-| `BlockModal` | `name` não vazio | livre; avisa que N tarefas ficam sem bloco |
-| `PersonModal` | `name` não vazio | livre; avisa que N tarefas ficam sem responsável no seletor |
-| `AreaModal` | `name` não vazio | **bloqueada** se a área tem tarefas; avisa que N pessoas ficam sem área |
-| `PhaseModal` | `name` não vazio | **bloqueada** se a fase tem blocos |
-
-As duas exclusões bloqueadas espelham chaves estrangeiras que o banco barraria
-(`tasks.area_id` é `NOT NULL`; `blocks.phase_id` referencia `phases`). A UI evita
-o erro em vez de deixar o banco recusar.
-
-Comportamentos específicos:
-
-- `TaskModal` — nova tarefa vem com `area = areas[0]?.id`, `status: "backlog"`,
-  `prio: "media"`. Em modo edição, se a tarefa não existir mais, retorna `null`
-  (fecha silenciosamente).
-- `BlockModal` — o input de fim tem `min={form.start}` e mostra a duração
-  calculada ao vivo. Se `end < start`, exibe aviso **e no submit corrige**
-  `end := start` (não bloqueia o salvamento).
-- `PhaseModal` — se `short` está vazio, deriva do nome: parte antes de `·`
-  (`"v1.0 · Base sólida"` → `"v1.0"`).
-
-### 8.8 Export CSV (`lib/exportCsv.ts`)
-
-Separador **`;`** e **BOM UTF-8** — as duas coisas para o Excel em pt-BR abrir
-corretamente com acentuação. Escapa células que contenham `"`, `;` ou `\n`.
-Exporta datas em **ISO**, não em `dd/mm/aaaa` (é dado, não exibição). O `Topbar`
-passa as tarefas filtradas quando há filtro ativo.
-
-### 8.9 Tema e estilo
-
-Duas fontes de verdade que precisam ficar em sincronia: `tailwind.config.ts`
-(classes) e `lib/theme.ts` (objeto `THEME`, para cor em `style` inline — SVG
-stroke, gradiente, etc.). Ao mudar uma cor de token, mude nos dois.
-
-Fundo geral: `#f6f6f6` (em `tailwind.config.ts` como `bg` e `line3`, em
-`THEME.bg`, e no `body` de `globals.css`). Primária laranja `#FF6636`.
-
-`whoAvatar(name)` em `theme.ts` deriva cor de avatar de forma determinística:
-`AVATAR_PALETTE[name.charCodeAt(0) % 10]`, devolvendo `{avBg, avColor}`. Nome
-vazio recebe cinza.
-
----
-
-## 9. Banco de dados
-
-### ⚠️ Dois bancos diferentes usam o schema `meu_inc_app`
-
-| Banco | Schema | O que é | Como acessar |
-|---|---|---|---|
-| `dpto_processo_superapp` | `meu_inc_app` | **Banco do app** | só pelo servidor Next (`/api/data`) |
-| `dpto_processos` | `meu_inc_app` | Espelho standalone | só via conector Pipedream |
-
-Regra crítica para o conector Pipedream: **use sempre `dpto_processos`**. A role
-da conexão (`grp_processos`) só tem `CONNECT` nesse banco; os demais retornam
-`permission denied`. Confirme com `SELECT current_database();` antes de operar. O
-conector **não aceita scripts multi-statement** — um comando por vez.
-
-Confundir os dois é o erro mais fácil de cometer neste repositório.
-
-### 9.1 As 8 tabelas (`db/schema-pgadmin.sql`)
-
-| Tabela | Colunas relevantes | Escrita pela API |
-|---|---|---|
-| `areas` | `id, name, color, sort_order` | sim |
-| `statuses` | `id, name, sub, color, soft, light, sort_order` | **não** |
-| `priorities` | `id, label, bg, text_color, sort_order` | **não** |
-| `phases` | `id, name, short, sort_order` | sim |
-| `blocks` | `id, name, theme, start_date, end_date, color, phase_id, sort_order` | sim |
-| `project` | `id boolean pk check(id), start_date, total_days` | **não** |
-| `people` | `id, name, role, responsibility, area_id, sort_order` | sim |
-| `tasks` | `id, description, area_id, block_id, who, priority_id, status_id, start_date, end_date, dependency, created_at, updated_at` | sim |
-
-Mais 3 índices (`tasks.area_id`, `tasks.status_id`, `tasks.block_id`) e o trigger
-`trg_tasks_updated_at`, que chama `set_updated_at()` em cada `UPDATE`.
-
-### 9.2 Chaves estrangeiras — o que cada uma implica
-
-```
-tasks.area_id     → areas(id)      NOT NULL, sem on delete
-                    ⇒ sem nenhuma área cadastrada, é impossível criar tarefa
-                    ⇒ excluir área com tarefas falha (a UI bloqueia antes)
-tasks.status_id   → statuses(id)   NOT NULL
-tasks.priority_id → priorities(id) NOT NULL, default 'media'
-                    ⇒ statuses e priorities precisam estar populadas ou nada funciona
-tasks.block_id    → blocks(id)     nullable, SEM on delete
-                    ⇒ apagar bloco exige soltar as tarefas ANTES, no mesmo lote
-blocks.phase_id   → phases(id)     nullable
-                    ⇒ excluir fase com blocos falha (a UI bloqueia antes)
-people.area_id    → areas(id)      ON DELETE SET NULL
-                    ⇒ excluir área desvincula as pessoas automaticamente
-```
-
-### 9.3 Ordem de criação em banco novo
-
-1. **`db/schema-pgadmin.sql`** — estrutura. Sem RLS nem policies (aquilo era
-   específico do Supabase e daria erro em Postgres comum). A ordem das tabelas já
-   respeita as FKs, roda de uma vez.
-2. **`db/seed-pgadmin.sql`** — carga mínima:
-   - `statuses` e `priorities` são **obrigatórias** (FK). Os ids têm de ser
-     exatamente os do seed, porque o app lê nome e cor de `lib/data.ts` e casa
-     pelo id.
-   - `areas` e `phases` são recomendadas: sem área, a tela de nova tarefa não tem
-     o que selecionar.
-   - Pessoas, blocos e tarefas **não** entram — são conteúdo do projeto, criados
-     pela interface.
-
-No pgAdmin, antes de cada arquivo: `set search_path to meu_inc_app;`
-
-### 9.4 Ordem FK-segura para apagar dados
-
-```
-tasks → blocks → phases → people → areas
-```
-
-Preserve `statuses` e `priorities` (são referência, não conteúdo).
-
-### 9.5 As cores no banco não são usadas
-
-`statuses.color`/`soft` e `priorities.bg`/`text_color` existem no banco, mas o app
-lê essas cores de `lib/data.ts` (`STATUSES`, `PRIO`), casando apenas pelo `id`.
-Os valores do banco e do código **já divergem** hoje. Não perca tempo
-sincronizando: a fonte de verdade visual é `data.ts`.
-
----
-
-## 10. Configuração e execução
-
-```bash
-npm install
-npm run dev        # http://localhost:3000
-npm run build
-npm run lint
-npx tsc --noEmit
-```
-
-### Variáveis de ambiente
-
-Nenhuma tem prefixo `NEXT_PUBLIC_`, de propósito. Modelo em `.env.example`; para
-rodar local, copie para `.env.local` (gitignored).
-
-| Variável | Obrig. | Função |
-|---|---|---|
-| `PGHOST` | sim¹ | host |
-| `PGPORT` | não | porta (padrão 5432) |
-| `PGDATABASE` | sim¹ | banco |
-| `PGUSER` | sim¹ | usuário |
-| `PGPASSWORD` | sim¹ | senha |
-| `DATABASE_URL` | sim¹ | alternativa às cinco acima |
-| `PGSSLMODE` | não | `require` (padrão) · `verify-ca` · `verify-full` · `disable` |
-| `PGSCHEMA` | não | schema (padrão `meu_inc_app`) |
-| `PGPOOL_MAX` | não | conexões por instância (padrão 4) |
-
-¹ Ou as `PG*` separadas, **ou** `DATABASE_URL`. Com `PGHOST` definido, ele tem
-preferência — evita problema de escape de senha na URL.
-
-Sem `PGHOST` e sem `DATABASE_URL`: modo demo.
-
-### Diagnóstico
-
-```bash
-curl -s http://localhost:3000/api/data?probe=1
-# {"configured":true,"schema":"meu_inc_app","database":"…","user":"…",
-#  "version":"PostgreSQL 16…","tables":["areas","blocks",…]}
-```
-
-### Rede de saída
-
-A porta do Postgres precisa estar liberada **de onde o servidor Next roda**
-(Vercel, container, máquina local) — nunca do browser. Ambientes que só liberam
-80/443 na saída não alcançam Postgres em 5432/7432; o sintoma é
-`Banco inacessível (ETIMEDOUT)` **antes de qualquer handshake**, o que significa
-que as credenciais nem foram avaliadas. Não confunda com credencial errada.
-
----
-
-## 11. Invariantes e armadilhas
-
-Lista de consulta. Cada item já causou ou pode causar bug real.
-
-### Fragilidades do código atual
-
-1. **`decorate()` não tem fallback para status desconhecido.**
-   ```ts
-   const st = statusMap[tk.status];   // undefined se o id não existir
-   statusName: st.name,               // ⇒ TypeError
-   ```
-   Área tem fallback (`UNKNOWN_AREA`), bloco tem (`"Sem bloco"`), **status não**.
-   O mesmo vale para `PRIO[tk.prio || "media"]`: o `|| "media"` cobre string
-   vazia, não um valor inválido como `"urgente"`. Se você introduzir status ou
-   prioridade nova, atualize `STATUSES`/`PRIO` em `lib/data.ts` **antes** de
-   qualquer dado usá-la — senão a tela quebra em runtime, não em compilação
-   (os ids vêm do banco como `string` e são convertidos com `as`).
-
-2. **`tk.who` é o NOME da pessoa, não um id.** Não há FK. Renomear pessoa exige
-   atualizar as tarefas em cascata (`updatePerson` faz isso). Excluir pessoa
-   **não** limpa as tarefas — elas ficam com o nome órfão, e é assim de propósito
-   (histórico preservado). Valores como `"Jurídico"` existem e não são pessoas
-   cadastradas.
-
-3. **Excluir bloco precisa das duas operações no mesmo lote, nessa ordem.** Fora
-   de transação, dá erro `23503`.
-
-4. **Nada de efeito colateral em updater de `setState`.** StrictMode duplica.
-
-### Semânticas que enganam pelo nome
-
-5. `getDelivered` inclui `pronto`, não só `entregue`.
-6. `getKpis().andamento` = `execucao` + `validacao` + `pronto` (`pronto` conta nos
-   dois lugares).
-7. `getGrouped` **omite** áreas sem tarefas; `getAreaDist` também.
-8. `getPeopleProgress` **omite** pessoas sem tarefas.
-9. `inclusiveDays` é inclusivo: mesmo dia = 1.
-10. `daysLeft` negativo = atrasado, não é erro.
-11. Bloco sem tarefas nunca é `delivered` na timeline.
-12. Bloco sem datas fica com `widthPct: "0%"` — presente no DOM, invisível.
-
-### Regras de plataforma
-
-13. **`export const runtime = "nodejs"`** e **`dynamic = "force-dynamic"`** na rota
-    são obrigatórios. Sem o primeiro, `pg` não funciona; sem o segundo, o Next
-    serve carga cacheada.
-14. **`serverExternalPackages: ["pg"]`** em `next.config.mjs` — o `pg` carrega
-    módulos dinamicamente (`pg-native`) e o empacotador tropeça.
-15. **`import "server-only"`** no topo de `lib/db/server.ts`. Se algum código de
-    cliente importar esse módulo, o build falha — e é isso que queremos.
-16. **`sslmode` da URL é removido de propósito.** Ver §5.6.
-17. **`todayIso` vem de `useEffect`**, nunca do render. Ver §8.5.
-
-### Convenções
-
-18. Datas: ISO no código/banco/inputs, `dd/mm/aaaa` na tela, só via `fmt()`.
-19. Vazio é `""`, não `null`/`undefined`, no modelo do app.
-20. Coluna nova exige entrada em `lib/db/tables.ts`.
-21. `THEME` e `tailwind.config.ts` andam juntos.
-22. Português em tudo, inclusive comentários.
-
----
-
-## 12. Receitas (como fazer alterações comuns)
-
-### Adicionar um campo a uma entidade existente
-
-Exemplo: `tasks.estimativa` (número de horas).
-
-1. **Banco:** `alter table meu_inc_app.tasks add column estimativa integer;` e
-   registre em `db/schema-pgadmin.sql`.
-2. **Contrato:** acrescente `"estimativa"` a `TABLES.tasks.columns` em
-   `lib/db/tables.ts`. **Sem isso a API rejeita com 400.**
-3. **Tipo de linha:** `estimativa: number | null` em `TaskRow` (`lib/db/rows.ts`).
-4. **Tipo do app:** `estimativa: number` em `Task` (`lib/types.ts`) — use `0` como
-   vazio, seguindo a convenção.
-5. **Mapeadores:** `taskFromRow` (`r.estimativa ?? 0`) e `taskToRow`
-   (`estimativa: t.estimativa || null`).
-6. **Input:** acrescente a `NewTaskInput` em `lib/store.tsx` e ao `EMPTY`/`toInput`
-   de `TaskModal.tsx`.
-7. **Formulário:** campo no `TaskModal`.
-8. **Exibição:** se for aparecer na tela, o cálculo/formatação vai para
-   `derive.ts` (provavelmente `decorate`), nunca no componente.
-9. **CSV:** se deve ser exportado, `lib/exportCsv.ts`.
-10. Verifique com a sequência da §13.
-
-Pular o passo 2 é o erro mais comum: a tela funciona (estado otimista) e a
-gravação falha silenciosamente exceto pelo toast.
-
-### Adicionar uma tabela nova
-
-1. DDL em `db/schema-pgadmin.sql` (respeitando a ordem das FKs).
-2. Entrada em `TABLES` com `columns`, `filters` e `orderBy`.
-3. Tipo de linha + mapeadores em `lib/db/rows.ts`, e o campo em `Bootstrap`.
-4. `loadAll` monta a consulta a partir de `Object.keys(TABLES)` — **não precisa
-   mexer no SQL**, ele passa a incluir a tabela automaticamente.
-5. Estado + CRUD no store, seguindo o padrão da §6.4.
-6. Se for referência somente leitura, **não** coloque em `TABLES` — carregue por
-   outro caminho e mantenha fora da superfície de escrita.
-
-### Adicionar uma tela
-
-1. Novo valor em `View` (`lib/types.ts`).
-2. Entrada em `TITLES` (`app/page.tsx`) e no render condicional.
-3. Item em `PROJECT_NAV` ou `SUPPORT_NAV` (`components/Sidebar.tsx`) com um ícone
-   de `components/icons.tsx`.
-4. Se o `Topbar` precisar de botão próprio, acrescente a flag lá.
-5. A tela consome funções de `derive.ts`. Se o dado ainda não existe, crie a
-   função **lá**, com interface de retorno declarada.
-
-### Adicionar um cálculo/indicador
-
-Só em `derive.ts`: função exportada, pura, com `interface` de retorno, recebendo
-`areas`/`phases` por parâmetro se depender delas. Depois consuma no componente.
-
-### Mexer no pipeline de status
-
-`STATUSES` em `lib/data.ts` (a ordem do array é a ordem das colunas) **e** uma
-linha em `statuses` no banco com o mesmo `id`. Reveja as funções que citam ids
-literalmente: `getKpis` (`andamento`, `entregue`), `getDelivered`,
-`decisionTasks`, `getBlocks` (`done`), `getPeopleProgress`. Um `grep -rn
-'"entregue"\|"pronto"\|"execucao"' lib/` encontra os pontos.
-
-### Wipe de dados preservando integridade
-
-Ordem da §9.4, preservando `statuses` e `priorities`. Depois valide com um insert
-que **deve** falhar por FK.
-
----
-
-## 13. Como verificar seu trabalho
-
-Sequência mínima, na ordem (cada uma pega uma classe distinta de erro):
-
-```bash
-npx tsc --noEmit     # tipos
-npm run lint         # ESLint (next lint)
-npm run build        # build de produção; pega erro de server/client boundary
-```
-
-Para mudanças na camada de dados, teste contra um Postgres real — o container
-pode não alcançar o banco de produção, mas dá para subir um local:
-
-```bash
-# 1. cluster local (initdb precisa rodar como usuário postgres; socket em caminho
-#    CURTO, porque o limite do socket unix é 107 bytes)
-su postgres -c "/usr/lib/postgresql/16/bin/initdb -D /caminho/pgdata -A trust -U postgres"
-su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /caminho/pgdata -l /caminho/pg.log \
-  -o '-p 55432 -k /tmp/pgs -c listen_addresses=127.0.0.1' start -w"
-
-# 2. schema + seed com os próprios scripts versionados
-createdb -h 127.0.0.1 -p 55432 -U postgres dpto_processo_superapp
-psql … -c "create schema meu_inc_app;" \
-       -c "set search_path to meu_inc_app;" -f db/schema-pgadmin.sql
-psql … -c "set search_path to meu_inc_app;" -f db/seed-pgadmin.sql
-
-# 3. aponte .env.local para ele (PGSSLMODE=disable) e exercite a API
-curl -s 'http://127.0.0.1:3000/api/data?probe=1'
-curl -s -X POST http://127.0.0.1:3000/api/data -H 'content-type: application/json' \
-  -d '{"ops":[{"op":"insert","table":"areas","values":{"id":"x","name":"X","color":"#000","sort_order":9}}]}'
-```
-
-O que vale checar explicitamente:
-
-- **Persistência real:** crie pela interface e confirme com `SELECT`. Recarregue a
-  página e veja se sobrevive.
-- **Rollback:** um lote cuja 2ª operação falha não pode deixar a 1ª gravada.
-- **Validação:** tabela fora da whitelist, coluna não gravável, filtro não
-  permitido, valor não primitivo → todos `400`.
-- **Injeção:** um valor como `O'Brien "x"; drop table tasks; --` deve gravar como
-  texto literal.
-- **Os 3 estados de conexão:** com banco → **Ao vivo**; sem env → **Modo demo**
-  sem aviso; com env e banco inalcançável → **Modo demo** + aviso com o motivo.
-  Em nenhum caso a tela pode ficar vazia.
-- **Vazamento no bundle:** `grep -r "<senha>\|<host>" .next/static` não pode
-  achar nada.
-
-Para UI, Playwright com o Chromium pré-instalado:
-
-```js
-chromium.launch({ executablePath: "/opt/pw-browsers/chromium", args: ["--no-sandbox"] })
-```
-
-Armadilhas de teste já encontradas: escope seletores a `.modal-panel` (os filtros
-do quadro ficam atrás do overlay e casam primeiro); use `page.locator("h3", {
-hasText })` em vez de `getByText().first()` (o segmento de timeline de largura
-zero casa antes do card).
-
----
-
-## 14. O que NÃO está implementado
-
-Saiba disto antes de "consertar" algo que nunca existiu.
-
-1. **Não há autenticação.** Qualquer um que abra a página pode escrever via
-   `/api/data`. Era assim no Supabase também (policies `using(true)`).
-2. **A tabela `project` é praticamente morta.** `PROJECT` em `lib/data.ts`
-   (`startDate`, `totalDays: 90`) não é editável nem persistido, e o app não lê a
-   tabela. Hoje pesa pouco, porque o período é derivado das datas dos blocos e
-   `PROJECT` só serve de fallback em `blocksWindow` quando nenhum bloco tem data.
-   Decisão pendente: tornar editável ou remover.
-3. **Rodapé da sidebar é fixo** — "Gustavo · Product Owner" está no código, não
-   vem de `people`.
-4. **Não há roteamento.** `view` é `useState`; não há URL por tela, nem deep link,
-   nem histórico do navegador.
-5. **Não há testes automatizados no repositório.** Nenhum runner configurado. A
-   verificação é a da §13, manual.
-6. **`db/seed.sql` está defasado** — usa a coluna `blocks.days`, substituída por
-   `start_date`/`end_date`. Esse arquivo descreve o espelho `dpto_processos`, não
-   o banco do app.
-7. **`docs/SUPABASE.md` e `db/supabase.sql` são histórico.** Não descrevem o
-   comportamento atual. A documentação válida do banco é `docs/POSTGRES.md`.
-8. **Não há paginação, nem virtualização, nem índice de busca.** Tudo é carregado
-   e filtrado em memória. Adequado à escala atual (dezenas de tarefas); se o
-   volume crescer para milhares, essa é a primeira coisa a repensar.
+| Renomear pessoa | `update tasks set who = novo where who = antigo` | `update people set name = novo` |
+| Excluir bife | `update tasks set block_id = NULL where block_id = X` | `delete from blocks where id = X` |
+| Excluir fase | `update blocks set phase_id = NULL where phase_id = X` | `delete from phases where id = X` |
+| Excluir área | `update tasks set area_id = outra where area_id = X` | `delete from areas where id = X` |
+
+### Checklist antes de começar
+
+1. `select current_database();` → **`dpto_processo_superapp`**
+2. `set search_path to meu_inc_app;`
+3. Um comando SQL por vez, se o conector exigir
+
+### Checklist depois de terminar
+
+1. Rodar as consultas de caça a problemas da §11 — todas com zero linhas
+2. Conferir os números com o Dashboard
+3. Recarregar a página do painel
+4. Confirmar que o selo está em **"Ao vivo"**
