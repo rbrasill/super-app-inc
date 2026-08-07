@@ -1,9 +1,20 @@
-# Supabase — banco ao vivo do app
+# Supabase — banco ao vivo do app (HISTÓRICO)
 
-O painel conecta a um projeto **Supabase** (Postgres) direto do navegador, via
-`@supabase/supabase-js`. Este é o banco **de produção do app** (persiste as
-alterações). O `dpto_processos` (conector Pipedream, ver `docs/DATABASE.md`)
-foi o espelho inicial standalone — a aplicação em si agora usa o Supabase.
+> ## ⚠️ Documento histórico — não vale mais
+>
+> O app **não usa mais o Supabase**. O banco passou a ser um PostgreSQL comum
+> (`dpto_processo_superapp`, schema `meu_inc_app`), acessado pelo servidor
+> Next em vez de direto do browser. A dependência `@supabase/supabase-js` foi
+> removida, assim como `lib/supabase.ts`.
+>
+> **Documentação atual: [`docs/POSTGRES.md`](POSTGRES.md).**
+>
+> Este arquivo fica só como registro do que existia antes (e `db/supabase.sql`
+> junto com ele). Nada aqui descreve o comportamento atual do código.
+
+O painel conectava a um projeto **Supabase** (Postgres) direto do navegador, via
+`@supabase/supabase-js`. Era o banco de produção do app. O `dpto_processos`
+(conector Pipedream, ver `docs/DATABASE.md`) foi o espelho inicial standalone.
 
 ## Projeto
 

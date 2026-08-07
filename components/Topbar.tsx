@@ -35,7 +35,7 @@ export default function Topbar({ title, sub, view }: { title: string; sub: strin
           <div className="font-head text-[25px] font-extrabold tracking-[-0.03em] leading-[1.1] text-inkDark">
             {title}
           </div>
-          {dataSource !== "loading" && <ConnBadge live={dataSource === "supabase"} />}
+          {dataSource !== "loading" && <ConnBadge live={dataSource === "db"} />}
         </div>
         <div className="text-[12.5px] text-inkSoft font-medium mt-[3px]">{sub}</div>
       </div>
@@ -106,14 +106,14 @@ export default function Topbar({ title, sub, view }: { title: string; sub: strin
   );
 }
 
-/** Selo de conexão: verde = banco ao vivo (Supabase); âmbar = modo demo. */
+/** Selo de conexão: verde = PostgreSQL ao vivo; âmbar = modo demo. */
 function ConnBadge({ live }: { live: boolean }) {
   return (
     <span
       title={
         live
-          ? "Conectado ao Supabase — suas alterações são salvas no banco."
-          : "Modo demo — dados em memória; nada é salvo. Configure as variáveis NEXT_PUBLIC_SUPABASE_* para persistir."
+          ? "Conectado ao PostgreSQL — suas alterações são salvas no banco."
+          : "Modo demo — dados em memória; nada é salvo. Configure as variáveis PGHOST/PGDATABASE… (ou DATABASE_URL) no servidor para persistir."
       }
       className={`inline-flex items-center gap-[6px] rounded-full px-[10px] py-[3px] text-[11px] font-bold border cursor-default select-none ${
         live

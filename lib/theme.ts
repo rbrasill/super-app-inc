@@ -4,7 +4,7 @@
  * e este objeto apenas onde a cor precisa ir em style inline (ex.: stroke de SVG).
  */
 export const THEME = {
-  bg: "#F5F7FA",
+  bg: "#f6f6f6",
   panel: "#FFFFFF",
   ink: "#1D2026",
   inkDark: "#1D2026",
