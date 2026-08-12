@@ -11,6 +11,7 @@ import PersonModal from "@/components/PersonModal";
 import PhaseModal from "@/components/PhaseModal";
 import Sidebar from "@/components/Sidebar";
 import SponsorView from "@/components/SponsorView";
+import StageGateView from "@/components/StageGateView";
 import TaskModal from "@/components/TaskModal";
 import Topbar from "@/components/Topbar";
 import { StoreProvider, useStore } from "@/lib/store";
@@ -19,6 +20,7 @@ import type { Sub, View } from "@/lib/types";
 const TITLES: Record<View, [string, string]> = {
   board: ["Quadro de execução", "Acompanhe as entregas do projeto"],
   blocks: ["Blocos (bifes)", "O app fatiado em blocos temáticos com prazo próprio"],
+  stage: ["Fluxo Stage-Gate", "Estágios sequenciais liberados por portões de decisão"],
   dash: ["Dashboard geral", "Visão consolidada do projeto para o time"],
   sponsor: ["Visão do patrocinador", "Resumo executivo · sem detalhe operacional"],
   people: ["Pessoas & papéis", "Quem faz o quê no projeto"],
@@ -82,6 +84,7 @@ function AppShell() {
           <div key={view} className="sc-scroll view-anim flex-1 overflow-auto px-[34px] pt-[6px] pb-10">
             {view === "board" && <BoardView sub={sub} />}
             {view === "blocks" && <BlocosView />}
+            {view === "stage" && <StageGateView />}
             {view === "dash" && <Dashboard />}
             {view === "sponsor" && <SponsorView />}
             {view === "people" && <PeopleGrid />}

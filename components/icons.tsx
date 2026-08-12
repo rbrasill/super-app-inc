@@ -57,6 +57,17 @@ export function BlocksIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Esteira de estágios com um portão (losango) no meio. */
+export function StageGateIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" strokeWidth="1.9" {...base} {...props}>
+      <rect x="2" y="8.5" width="6" height="7" rx="1.5" />
+      <rect x="16" y="8.5" width="6" height="7" rx="1.5" />
+      <path d="M12 9.2 14.8 12 12 14.8 9.2 12z" />
+    </svg>
+  );
+}
+
 export function SearchIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" width="15" height="15" strokeWidth="2" fill="none" strokeLinecap="round" {...props}>

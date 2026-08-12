@@ -111,5 +111,5 @@ export interface DecoratedTask extends Task {
   avColor: string;
 }
 
-export type View = "board" | "blocks" | "dash" | "sponsor" | "people";
+export type View = "board" | "blocks" | "stage" | "dash" | "sponsor" | "people";
 export type Sub = "kanban" | "grouped";

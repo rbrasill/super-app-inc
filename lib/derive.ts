@@ -40,6 +40,19 @@ function inclusiveDays(start: string, end: string): number {
 const blockMapOf = (blocks: Bloco[]): Record<string, Bloco> =>
   Object.fromEntries(blocks.map((b) => [b.id, b]));
 
+/**
+ * Semáforo de um bloco a partir das suas tarefas. Extraído para que a visão de
+ * blocos e o fluxo stage-gate usem exatamente a mesma regra — duas cópias
+ * divergiriam na primeira vez que alguém ajustasse um limiar.
+ */
+function lamp(count: number, done: number, blocked: number): { color: string; text: string } {
+  if (count === 0) return { color: THEME.inkFaint, text: "Sem tarefas" };
+  const pc = Math.round((done / count) * 100);
+  if (blocked > 0 && pc < 50) return { color: "#EF4444", text: "Em risco" };
+  if (blocked > 0 || pc < 40) return { color: "#F59E0B", text: "Atenção" };
+  return { color: "#10B981", text: "No ritmo" };
+}
+
 export function decorate(tk: Task, blocks: Record<string, Bloco>, areas: Record<string, Area>): DecoratedTask {
   const a = areas[tk.area] ?? UNKNOWN_AREA;
   const p = PRIO[tk.prio || "media"];
@@ -278,19 +291,7 @@ export function getBlocks(
     const blocked = items.filter((tk) => tk.dep).length;
     const pc = items.length ? Math.round((done / items.length) * 100) : 0;
 
-    let lampColor = "#10B981";
-    let txt = "No ritmo";
-    if (blocked > 0 && pc < 50) {
-      lampColor = "#EF4444";
-      txt = "Em risco";
-    } else if (blocked > 0 || pc < 40) {
-      lampColor = "#F59E0B";
-      txt = "Atenção";
-    }
-    if (items.length === 0) {
-      lampColor = THEME.inkFaint;
-      txt = "Sem tarefas";
-    }
+    const { color: lampColor, text: txt } = lamp(items.length, done, blocked);
 
     // Duração e posição na timeline vêm das datas do próprio bife.
     const days = inclusiveDays(b.start, b.end);
@@ -524,6 +525,190 @@ export function getPeople(people: Person[], areas: Area[] = AREAS): PersonRow[] 
       hasArea: !!ar,
     };
   });
+}
+
+// ----------------------------- Fluxo Stage-Gate -----------------------------
+
+/** Status agrupados em três macro-etapas, para o buffer de carregamento. */
+const EM_CURSO: string[] = ["execucao", "validacao", "pronto"];
+const NAO_INICIADO: string[] = ["discovery", "backlog", "planejado"];
+
+/** Fatia de um status dentro do estágio (barra "porcentagem por status"). */
+export interface StageStatusSlice {
+  id: string;
+  name: string;
+  color: string;
+  count: number;
+  /** Percentual arredondado, para o rótulo. */
+  pct: number;
+  /** Largura exata da fatia ("12.50%"), para a barra não estourar. */
+  w: string;
+}
+
+/**
+ * Buffer de carregamento: quanto do estágio já foi entregue, quanto está em
+ * curso e quanto nem começou. As larguras são exatas; os números, inteiros.
+ */
+export interface StageBuffer {
+  total: number;
+  delivered: number;
+  inProgress: number;
+  notStarted: number;
+  deliveredW: string;
+  inProgressW: string;
+  notStartedW: string;
+}
+
+export interface StageStep {
+  /** Id do bloco que este estágio representa. */
+  id: string;
+  /** Posição na esteira (1-based, ordem cronológica). */
+  n: number;
+  /** Nome do bloco — é o título do estágio. */
+  name: string;
+  /** Fase do roadmap ("v1.0 · Base sólida") ou "" quando o bloco não tem fase. */
+  phaseLabel: string;
+  color: string;
+  /** % de tarefas entregues — o "carregado" do estágio. */
+  loadedPct: number;
+  /** % que falta para entregar o estágio. */
+  remainingPct: number;
+  lampColor: string;
+  lampText: string;
+  buffer: StageBuffer;
+  statusSlices: StageStatusSlice[];
+  start: string;
+  end: string;
+  hasDates: boolean;
+  /** "01/06/2026 → 15/08/2026" ou "Sem datas definidas". */
+  dateRange: string;
+  /** Janela do estágio em dias (0 sem datas). */
+  days: number;
+}
+
+export type GateState = "liberado" | "aguarda" | "hold";
+
+/** Portão de decisão entre dois estágios consecutivos. */
+export interface StageGate {
+  id: string;
+  /** Rótulo curto exibido no losango ("G1"). */
+  label: string;
+  state: GateState;
+  stateLabel: string;
+  color: string;
+  /** Índice (0-based) do estágio que precisa concluir para o portão abrir. */
+  fromIndex: number;
+  /** Explicação para tooltip. */
+  hint: string;
+}
+
+export interface StageGateFlow {
+  stages: StageStep[];
+  /** Sempre `stages.length - 1` portões (0 quando há menos de 2 estágios). */
+  gates: StageGate[];
+}
+
+/**
+ * Esteira stage-gate do projeto: cada **bloco ("bife")** vira um estágio, em
+ * ordem cronológica, e entre dois estágios consecutivos existe um portão de
+ * decisão cujo estado decorre do estágio anterior:
+ *
+ * - `liberado` — o estágio anterior tem tarefas e todas foram entregues;
+ * - `aguarda`  — já começou (algo entregue ou em curso), mas não terminou;
+ * - `hold`     — não começou (sem tarefas, ou tudo ainda não iniciado).
+ *
+ * O semáforo de cada estágio é o mesmo dos blocos (função `lamp`), para as duas
+ * telas nunca discordarem sobre a saúde do mesmo bife.
+ */
+export function getStageGate(
+  tasks: Task[],
+  blocks: Bloco[],
+  phases: Fase[] = PHASES
+): StageGateFlow {
+  const phaseMap: Record<string, Fase> = Object.fromEntries(phases.map((p) => [p.id, p]));
+
+  const stages: StageStep[] = chronological(blocks).map((b, i) => {
+    const items = tasks.filter((tk) => tk.blockId === b.id);
+    const total = items.length;
+    const delivered = items.filter((tk) => tk.status === "entregue").length;
+    const inProgress = items.filter((tk) => EM_CURSO.includes(tk.status)).length;
+    const notStarted = items.filter((tk) => NAO_INICIADO.includes(tk.status)).length;
+    const blocked = items.filter((tk) => tk.dep).length;
+    const loadedPct = total ? Math.round((delivered / total) * 100) : 0;
+    const wOf = (n: number) => (total ? ((n / total) * 100).toFixed(2) : "0") + "%";
+
+    const statusSlices: StageStatusSlice[] = STATUSES.map((s) => {
+      const n = items.filter((tk) => tk.status === s.id).length;
+      if (!n) return null;
+      return {
+        id: s.id,
+        name: s.name,
+        color: s.color,
+        count: n,
+        pct: Math.round((n / total) * 100),
+        w: wOf(n),
+      };
+    }).filter(Boolean) as StageStatusSlice[];
+
+    const l = lamp(total, delivered, blocked);
+    const hasDates = !!(b.start && b.end);
+    const phase = phaseMap[b.phaseId];
+
+    return {
+      id: b.id,
+      n: i + 1,
+      name: b.name,
+      phaseLabel: phase?.name ?? "",
+      color: b.color,
+      loadedPct,
+      remainingPct: 100 - loadedPct,
+      lampColor: l.color,
+      lampText: l.text,
+      buffer: {
+        total,
+        delivered,
+        inProgress,
+        notStarted,
+        deliveredW: wOf(delivered),
+        inProgressW: wOf(inProgress),
+        notStartedW: wOf(notStarted),
+      },
+      statusSlices,
+      start: b.start,
+      end: b.end,
+      hasDates,
+      dateRange: hasDates ? `${fmt(b.start)} → ${fmt(b.end)}` : "Sem datas definidas",
+      days: inclusiveDays(b.start, b.end),
+    };
+  });
+
+  const gates: StageGate[] = stages.slice(0, -1).map((prev, i) => {
+    const { total, delivered, inProgress } = prev.buffer;
+    let state: GateState = "hold";
+    if (total > 0 && delivered === total) state = "liberado";
+    else if (delivered > 0 || inProgress > 0) state = "aguarda";
+
+    const hint =
+      state === "liberado"
+        ? `Portão liberado — "${prev.name}" está 100% entregue.`
+        : state === "aguarda"
+          ? `Aguarda a conclusão de "${prev.name}" (${delivered} de ${total} entregue(s)).`
+          : total === 0
+            ? `Em espera — "${prev.name}" ainda não tem tarefas.`
+            : `Em espera — nenhuma tarefa de "${prev.name}" foi iniciada.`;
+
+    return {
+      id: `g${i + 1}`,
+      label: `G${i + 1}`,
+      state,
+      stateLabel: state === "liberado" ? "Liberado" : state === "aguarda" ? "Aguarda" : "Hold",
+      color: state === "liberado" ? THEME.success : state === "aguarda" ? THEME.warning : THEME.inkMute,
+      fromIndex: i,
+      hint,
+    };
+  });
+
+  return { stages, gates };
 }
 
 export interface PersonProgress {
