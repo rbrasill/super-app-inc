@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, SVGProps } from "react";
-import { BlocksIcon, BoardIcon, DashIcon, PeopleIcon, SponsorIcon } from "./icons";
+import { BlocksIcon, BoardIcon, DashIcon, PeopleIcon, SponsorIcon, StageGateIcon } from "./icons";
 import type { View } from "@/lib/types";
 
 interface NavDef {
@@ -13,6 +13,7 @@ interface NavDef {
 const PROJECT_NAV: NavDef[] = [
   { view: "board", label: "Quadro de execução", Icon: BoardIcon },
   { view: "blocks", label: "Blocos (bifes)", Icon: BlocksIcon },
+  { view: "stage", label: "Fluxo Stage-Gate", Icon: StageGateIcon },
   { view: "dash", label: "Dashboard geral", Icon: DashIcon },
   { view: "sponsor", label: "Visão do patrocinador", Icon: SponsorIcon },
 ];
